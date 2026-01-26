@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.MobileAccessMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.MobileAccess">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="access_id" jdbcType="BIGINT" property="accessId" />
+        <result column="user_id" jdbcType="VARCHAR" property="userId" />
+        <result column="device_type" jdbcType="VARCHAR" property="deviceType" />
+        <result column="device_model" jdbcType="VARCHAR" property="deviceModel" />
+        <result column="os_version" jdbcType="VARCHAR" property="osVersion" />
+        <result column="app_version" jdbcType="VARCHAR" property="appVersion" />
+        <result column="access_time" jdbcType="TIMESTAMP" property="accessTime" />
+        <result column="ip_address" jdbcType="VARCHAR" property="ipAddress" />
+        <result column="location" jdbcType="VARCHAR" property="location" />
+        <result column="access_status" jdbcType="VARCHAR" property="accessStatus" />
+        <result column="error_code" jdbcType="VARCHAR" property="errorCode" />
+        <result column="error_msg" jdbcType="VARCHAR" property="errorMsg" />
+    </resultMap>
+
+    <select id="selectMobileAccessById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM mobile_access WHERE id = #{id}
+    </select>
+
+    <select id="selectMobileAccessListByDeviceType" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM mobile_access WHERE device_type = #{deviceType}
+    </select>
+
+    <select id="selectMobileAccessListByAccessStatus" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM mobile_access WHERE access_status = #{accessStatus}
+    </select>
+</mapper>

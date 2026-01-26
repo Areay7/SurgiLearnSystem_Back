@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.DiscussionForumMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.DiscussionForum">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="discussion_id" jdbcType="BIGINT" property="discussionId" />
+        <result column="forum_title" jdbcType="VARCHAR" property="forumTitle" />
+        <result column="poster_id" jdbcType="VARCHAR" property="posterId" />
+        <result column="post_time" jdbcType="TIMESTAMP" property="postTime" />
+        <result column="content" jdbcType="VARCHAR" property="content" />
+        <result column="reply_count" jdbcType="INTEGER" property="replyCount" />
+        <result column="like_count" jdbcType="INTEGER" property="likeCount" />
+        <result column="is_sticky" jdbcType="INTEGER" property="isSticky" />
+        <result column="is_locked" jdbcType="INTEGER" property="isLocked" />
+        <result column="last_reply_id" jdbcType="VARCHAR" property="lastReplyId" />
+        <result column="last_reply_time" jdbcType="TIMESTAMP" property="lastReplyTime" />
+        <result column="category_id" jdbcType="VARCHAR" property="categoryId" />
+    </resultMap>
+
+    <select id="selectDiscussionForumById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM discussion_forum WHERE id = #{id}
+    </select>
+</mapper>

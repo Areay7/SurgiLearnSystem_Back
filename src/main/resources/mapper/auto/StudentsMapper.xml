@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.StudentsMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.Students">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="student_id" jdbcType="BIGINT" property="studentId" />
+        <result column="student_name" jdbcType="VARCHAR" property="studentName" />
+        <result column="phone" jdbcType="VARCHAR" property="phone" />
+        <result column="email" jdbcType="VARCHAR" property="email" />
+        <result column="gender" jdbcType="VARCHAR" property="gender" />
+        <result column="birth_date" jdbcType="DATE" property="birthDate" />
+        <result column="department" jdbcType="VARCHAR" property="department" />
+        <result column="position" jdbcType="VARCHAR" property="position" />
+        <result column="employee_id" jdbcType="VARCHAR" property="employeeId" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="enrollment_date" jdbcType="DATE" property="enrollmentDate" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <select id="selectStudentsById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM students WHERE id = #{id}
+    </select>
+</mapper>

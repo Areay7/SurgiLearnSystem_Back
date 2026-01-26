@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.CertificateIssueMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.CertificateIssue">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="certificate_id" jdbcType="BIGINT" property="certificateId" />
+        <result column="issue_date" jdbcType="TIMESTAMP" property="issueDate" />
+        <result column="certificate_type" jdbcType="VARCHAR" property="certificateType" />
+        <result column="holder_name" jdbcType="VARCHAR" property="holderName" />
+        <result column="holder_id" jdbcType="VARCHAR" property="holderId" />
+        <result column="training_course" jdbcType="VARCHAR" property="trainingCourse" />
+        <result column="organization" jdbcType="VARCHAR" property="organization" />
+        <result column="expiry_date" jdbcType="TIMESTAMP" property="expiryDate" />
+        <result column="certificate_status" jdbcType="VARCHAR" property="certificateStatus" />
+        <result column="issue_note" jdbcType="VARCHAR" property="issueNote" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <select id="selectCertificateIssueById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM certificate_issue WHERE id = #{id}
+    </select>
+
+    <select id="selectCertificateIssueListByCertificateType" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM certificate_issue WHERE certificate_type = #{certificateType}
+    </select>
+
+    <select id="selectCertificateIssueListByCertificateStatus" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM certificate_issue WHERE certificate_status = #{certificateStatus}
+    </select>
+</mapper>

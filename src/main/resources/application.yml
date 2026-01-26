@@ -1,0 +1,56 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: surgilearn-system
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库连接配置 - 请根据实际情况修改以下配置
+    url: jdbc:mysql://192.168.113.205:3306/surgilearn?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root          # 修改为你的数据库用户名
+    password: 123456          # 修改为你的数据库密码
+    # 连接池配置（可选）
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    # 支持多种日期格式解析
+    deserialization:
+      adjust-dates-to-context-time-zone: false
+      fail-on-unknown-properties: false
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.discussio.resourc.model
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+pagehelper:
+  helper-dialect: mysql
+  reasonable: true
+  support-methods-arguments: true
+
+# JWT配置
+jwt:
+  secret: SurgiLearnSystemSecretKeyForJWTTokenGeneration2024SecureKey  # JWT密钥，至少32个字符，生产环境请修改
+  expiration: 86400000  # Token过期时间（毫秒），默认24小时
+
+logging:
+  level:
+    com.discussio.resourc: debug
+    root: info
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
