@@ -91,6 +91,64 @@ public class LoginController {
             return AjaxResult.error("密码修改失败：" + e.getMessage());
         }
     }
+    
+    @ApiOperation(value = "获取用户信息", notes = "获取当前登录用户信息")
+    @GetMapping("/userInfo")
+    public AjaxResult getUserInfo(@RequestParam String username) {
+        try {
+            com.discussio.resourc.model.auto.LoginDiscussionForum user = loginService.getUserInfo(username);
+            if (user != null) {
+                // 不返回密码
+                user.setPassword(null);
+                return AjaxResult.success(user);
+            } else {
+                return AjaxResult.error("用户不存在");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("获取用户信息失败：" + e.getMessage());
+        }
+    }
+    
+    @ApiOperation(value = "更新用户信息", notes = "更新用户昵称等信息")
+    @PostMapping("/updateUserInfo")
+    public AjaxResult updateUserInfo(@RequestBody UpdateUserInfoRequest request) {
+        try {
+            boolean success = loginService.updateUserInfo(request.getUsername(), request.getNickname());
+            if (success) {
+                return AjaxResult.success("更新成功");
+            } else {
+                return AjaxResult.error("更新失败");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("更新失败：" + e.getMessage());
+        }
+    }
+    
+    @ApiOperation(value = "批量获取用户信息", notes = "根据用户名列表批量获取用户信息（包括昵称）")
+    @PostMapping("/batchUserInfo")
+    public AjaxResult batchUserInfo(@RequestBody BatchUserInfoRequest request) {
+        try {
+            java.util.Map<String, String> userInfoMap = new java.util.HashMap<>();
+            if (request.getUsernames() != null) {
+                for (String username : request.getUsernames()) {
+                    com.discussio.resourc.model.auto.LoginDiscussionForum user = loginService.getUserInfo(username);
+                    if (user != null) {
+                        // 优先返回昵称，如果没有昵称则返回用户名
+                        String displayName = user.getNickname();
+                        if (displayName == null || displayName.trim().isEmpty()) {
+                            displayName = user.getUsername();
+                        }
+                        userInfoMap.put(username, displayName);
+                    } else {
+                        userInfoMap.put(username, username); // 用户不存在时返回原用户名
+                    }
+                }
+            }
+            return AjaxResult.success(userInfoMap);
+        } catch (Exception e) {
+            return AjaxResult.error("获取用户信息失败：" + e.getMessage());
+        }
+    }
 
     // 内部类：登录请求
     public static class LoginRequest {
@@ -164,6 +222,41 @@ public class LoginController {
 
         public void setNewPassword(String newPassword) {
             this.newPassword = newPassword;
+        }
+    }
+    
+    // 内部类：更新用户信息请求
+    public static class UpdateUserInfoRequest {
+        private String username;
+        private String nickname;
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getNickname() {
+            return nickname;
+        }
+
+        public void setNickname(String nickname) {
+            this.nickname = nickname;
+        }
+    }
+    
+    // 内部类：批量获取用户信息请求
+    public static class BatchUserInfoRequest {
+        private java.util.List<String> usernames;
+
+        public java.util.List<String> getUsernames() {
+            return usernames;
+        }
+
+        public void setUsernames(java.util.List<String> usernames) {
+            this.usernames = usernames;
         }
     }
 }

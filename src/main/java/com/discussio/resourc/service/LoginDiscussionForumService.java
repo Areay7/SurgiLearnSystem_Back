@@ -11,4 +11,6 @@ public interface LoginDiscussionForumService extends IService<LoginDiscussionFor
     boolean registerUser(String username, String password);
     boolean changePassword(String username, String oldPassword, String newPassword);
     String generateToken(String username);
+    LoginDiscussionForum getUserInfo(String username);
+    boolean updateUserInfo(String username, String nickname);
 }

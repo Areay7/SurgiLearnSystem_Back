@@ -276,4 +276,34 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
         }
         return hasDigit && hasLetter;
     }
+    
+    @Override
+    public LoginDiscussionForum getUserInfo(String username) {
+        try {
+            return loginDiscussionForumMapper.findBydiscussionForumname(username);
+        } catch (Exception e) {
+            logger.error("获取用户信息失败 - 用户名: {}, 错误: {}", username, e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    @Override
+    public boolean updateUserInfo(String username, String nickname) {
+        try {
+            LoginDiscussionForum user = loginDiscussionForumMapper.findBydiscussionForumname(username);
+            if (user == null) {
+                logger.warn("更新用户信息失败：用户不存在 - 用户名: {}", username);
+                return false;
+            }
+            user.setNickname(nickname);
+            boolean updated = this.updateById(user);
+            if (updated) {
+                logger.info("用户信息更新成功 - 用户名: {}, 昵称: {}", username, nickname);
+            }
+            return updated;
+        } catch (Exception e) {
+            logger.error("更新用户信息失败 - 用户名: {}, 错误: {}", username, e.getMessage(), e);
+            return false;
+        }
+    }
 }
