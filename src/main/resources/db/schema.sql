@@ -31,6 +31,23 @@ CREATE TABLE IF NOT EXISTS `discussion_forum` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 讨论论坛回复表
+CREATE TABLE IF NOT EXISTS `forum_reply` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `reply_id` BIGINT(20) DEFAULT NULL,
+  `forum_id` BIGINT(20) NOT NULL,
+  `replier_id` VARCHAR(150) DEFAULT NULL,
+  `reply_time` DATETIME DEFAULT NULL,
+  `content` TEXT,
+  `like_count` INT(11) DEFAULT 0,
+  `parent_reply_id` BIGINT(20) DEFAULT NULL,
+  `is_deleted` INT(11) DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_forum_id` (`forum_id`),
+  KEY `idx_reply_time` (`reply_time`),
+  KEY `idx_parent_reply_id` (`parent_reply_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 资源共享平台表
 CREATE TABLE IF NOT EXISTS `resource_sharing` (
   `id` BIGINT(20) NOT NULL AUTO_INCREMENT,

@@ -37,10 +37,29 @@ public class DiscussionForumController extends BaseController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String searchText,
-            @RequestParam(required = false) String categoryId) {
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) String forumTitle,
+            @RequestParam(required = false) String posterId,
+            @RequestParam(required = false) String postTime) {
         QueryWrapper<DiscussionForum> queryWrapper = new QueryWrapper<>();
         
-        // 搜索条件
+        // 讨论标题搜索
+        if (forumTitle != null && !forumTitle.trim().isEmpty()) {
+            queryWrapper.like("forum_title", forumTitle.trim());
+        }
+        
+        // 发帖者ID搜索
+        if (posterId != null && !posterId.trim().isEmpty()) {
+            queryWrapper.like("poster_id", posterId.trim());
+        }
+        
+        // 发布时间搜索（按日期匹配）
+        if (postTime != null && !postTime.trim().isEmpty()) {
+            // 前端传的是日期格式 YYYY-MM-DD，需要匹配当天的所有记录
+            queryWrapper.apply("DATE(post_time) = {0}", postTime.trim());
+        }
+        
+        // 通用搜索（兼容旧接口）
         if (searchText != null && !searchText.trim().isEmpty()) {
             queryWrapper.and(wrapper -> wrapper
                 .like("forum_title", searchText)
@@ -116,5 +135,16 @@ public class DiscussionForumController extends BaseController {
     @PostMapping("/edit")
     public AjaxResult DiscussionForumeditSave(@RequestBody DiscussionForum discussionForum) {
         return toAjax(discussionForumService.updateDiscussionForum(discussionForum));
+    }
+    
+    @ApiOperation(value = "点赞话题", notes = "点赞话题")
+    @PostMapping("/like/{id}")
+    public AjaxResult likeTopic(@PathVariable("id") Long id) {
+        DiscussionForum forum = discussionForumService.selectDiscussionForumById(id);
+        if (forum == null) {
+            return AjaxResult.error("话题不存在");
+        }
+        forum.setLikeCount((forum.getLikeCount() == null ? 0 : forum.getLikeCount()) + 1);
+        return toAjax(discussionForumService.updateDiscussionForum(forum));
     }
 }
