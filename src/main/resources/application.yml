@@ -57,6 +57,7 @@ jwt:
 # 文件上传配置
 file:
   upload-path: /Users/areay/Documents/word/word_6_/uploads  # 文件上传路径，相对路径或绝对路径
+  upload-max-size-mb: 500  # 学习资料上传大小限制（MB）
 
 logging:
   level:
