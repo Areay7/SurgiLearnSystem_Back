@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.ProgressMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.Progress">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="progress_id" jdbcType="BIGINT" property="progressId" />
+        <result column="student_id" jdbcType="BIGINT" property="studentId" />
+        <result column="student_name" jdbcType="VARCHAR" property="studentName" />
+        <result column="course_id" jdbcType="BIGINT" property="courseId" />
+        <result column="course_name" jdbcType="VARCHAR" property="courseName" />
+        <result column="progress_percent" jdbcType="INTEGER" property="progressPercent" />
+        <result column="completed_lessons" jdbcType="INTEGER" property="completedLessons" />
+        <result column="total_lessons" jdbcType="INTEGER" property="totalLessons" />
+        <result column="last_study_time" jdbcType="TIMESTAMP" property="lastStudyTime" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <select id="selectProgressById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM progress WHERE id = #{id}
+    </select>
+</mapper>
+

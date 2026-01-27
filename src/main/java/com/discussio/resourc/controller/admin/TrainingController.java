@@ -1,0 +1,114 @@
+package com.discussio.resourc.controller.admin;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.discussio.resourc.common.config.BaseController;
+import com.discussio.resourc.common.domain.AjaxResult;
+import com.discussio.resourc.common.domain.ResultTable;
+import com.discussio.resourc.model.auto.Training;
+import com.discussio.resourc.model.auto.TrainingMaterial;
+import com.discussio.resourc.service.ITrainingMaterialService;
+import com.discussio.resourc.service.ITrainingService;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
+
+/**
+ * 护理培训管理（课程+关联资料）
+ */
+@Api(value = "护理培训管理")
+@RestController
+@RequestMapping("/TrainingController")
+@CrossOrigin(origins = "*")
+public class TrainingController extends BaseController {
+
+    @Autowired
+    private ITrainingService trainingService;
+
+    @Autowired
+    private ITrainingMaterialService trainingMaterialService;
+
+    @ApiOperation(value = "培训列表", notes = "分页、搜索、类型/状态过滤")
+    @GetMapping("/list")
+    public ResultTable list(@RequestParam(required = false) Integer page,
+                            @RequestParam(required = false) Integer limit,
+                            @RequestParam(required = false) String searchText,
+                            @RequestParam(required = false) String trainingType,
+                            @RequestParam(required = false) String status) {
+        QueryWrapper<Training> qw = new QueryWrapper<>();
+        if (StringUtils.isNotBlank(searchText)) {
+            qw.and(w -> w.like("training_name", searchText).or().like("description", searchText));
+        }
+        if (StringUtils.isNotBlank(trainingType)) {
+            qw.eq("training_type", trainingType.trim());
+        }
+        if (StringUtils.isNotBlank(status)) {
+            qw.eq("status", status.trim());
+        }
+        qw.orderByDesc("update_time");
+
+        PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 10);
+        List<Training> list = trainingService.selectTrainingList(qw);
+        PageInfo<Training> pageInfo = new PageInfo<>(list);
+        return pageTable(pageInfo.getList(), pageInfo.getTotal());
+    }
+
+    @ApiOperation(value = "培训详情")
+    @GetMapping("/detail/{id}")
+    public AjaxResult detail(@PathVariable("id") Long id) {
+        return AjaxResult.success(trainingService.selectTrainingById(id));
+    }
+
+    @ApiOperation(value = "新增培训")
+    @PostMapping("/add")
+    public AjaxResult add(@RequestBody Training training) {
+        try {
+            if (training.getCreateTime() == null) training.setCreateTime(new Date());
+            if (training.getUpdateTime() == null) training.setUpdateTime(new Date());
+            return toAjax(trainingService.insertTraining(training));
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "修改培训")
+    @PostMapping("/edit")
+    public AjaxResult edit(@RequestBody Training training) {
+        try {
+            return toAjax(trainingService.updateTraining(training));
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "删除培训")
+    @DeleteMapping("/remove")
+    public AjaxResult remove(@RequestParam String ids) {
+        return toAjax(trainingService.deleteTrainingByIds(ids));
+    }
+
+    @ApiOperation(value = "获取培训关联资料")
+    @GetMapping("/materials/{trainingId}")
+    public AjaxResult listMaterials(@PathVariable("trainingId") Long trainingId) {
+        return AjaxResult.success(trainingMaterialService.listByTrainingId(trainingId));
+    }
+
+    @ApiOperation(value = "设置培训关联资料", notes = "替换该培训的资料列表")
+    @PostMapping("/materials/{trainingId}")
+    public AjaxResult replaceMaterials(@PathVariable("trainingId") Long trainingId,
+                                       @RequestBody List<TrainingMaterial> items) {
+        try {
+            int n = trainingMaterialService.replaceTrainingMaterials(trainingId, items);
+            return AjaxResult.success("保存成功", n);
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+}
+

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.TrainingMaterialMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.TrainingMaterial">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="training_id" jdbcType="BIGINT" property="trainingId" />
+        <result column="material_id" jdbcType="BIGINT" property="materialId" />
+        <result column="sort_order" jdbcType="INTEGER" property="sortOrder" />
+        <result column="required" jdbcType="TINYINT" property="required" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    </resultMap>
+</mapper>
+

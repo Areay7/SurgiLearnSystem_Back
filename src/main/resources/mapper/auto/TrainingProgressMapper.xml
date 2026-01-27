@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.TrainingProgressMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.TrainingProgress">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="training_id" jdbcType="BIGINT" property="trainingId" />
+        <result column="student_id" jdbcType="BIGINT" property="studentId" />
+        <result column="student_name" jdbcType="VARCHAR" property="studentName" />
+        <result column="progress_percent" jdbcType="INTEGER" property="progressPercent" />
+        <result column="completed_count" jdbcType="INTEGER" property="completedCount" />
+        <result column="total_count" jdbcType="INTEGER" property="totalCount" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="last_study_time" jdbcType="TIMESTAMP" property="lastStudyTime" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+</mapper>
+
