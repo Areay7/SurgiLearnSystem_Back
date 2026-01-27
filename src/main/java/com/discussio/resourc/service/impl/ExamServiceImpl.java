@@ -45,10 +45,19 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
         if (exam.getDuration() == null || exam.getDuration() <= 0) {
             throw new RuntimeException("考试时长必须大于0！");
         }
-        if (exam.getTotalScore() == null || exam.getTotalScore() <= 0) {
-            throw new RuntimeException("总分必须大于0！");
+        // 总分：允许先创建考试再选题（总分可为0），选题后由系统自动计算更新
+        if (exam.getTotalScore() == null) {
+            exam.setTotalScore(0);
         }
-        if (exam.getPassScore() == null || exam.getPassScore() < 0) {
+        if (exam.getTotalScore() < 0) {
+            throw new RuntimeException("总分不能小于0！");
+        }
+
+        // 及格分：允许手动设置，但必须 >=0 且 <= 总分
+        if (exam.getPassScore() == null) {
+            exam.setPassScore(0);
+        }
+        if (exam.getPassScore() < 0) {
             throw new RuntimeException("及格分不能小于0！");
         }
         if (exam.getPassScore() > exam.getTotalScore()) {
@@ -80,8 +89,8 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
         if (exam.getDuration() != null && exam.getDuration() <= 0) {
             throw new RuntimeException("考试时长必须大于0！");
         }
-        if (exam.getTotalScore() != null && exam.getTotalScore() <= 0) {
-            throw new RuntimeException("总分必须大于0！");
+        if (exam.getTotalScore() != null && exam.getTotalScore() < 0) {
+            throw new RuntimeException("总分不能小于0！");
         }
         if (exam.getPassScore() != null && exam.getPassScore() < 0) {
             throw new RuntimeException("及格分不能小于0！");
