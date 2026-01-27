@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.QuestionBankMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.QuestionBank">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="question_id" jdbcType="BIGINT" property="questionId" />
+        <result column="question_type" jdbcType="VARCHAR" property="questionType" />
+        <result column="question_content" jdbcType="VARCHAR" property="questionContent" />
+        <result column="option_a" jdbcType="VARCHAR" property="optionA" />
+        <result column="option_b" jdbcType="VARCHAR" property="optionB" />
+        <result column="option_c" jdbcType="VARCHAR" property="optionC" />
+        <result column="option_d" jdbcType="VARCHAR" property="optionD" />
+        <result column="correct_answer" jdbcType="VARCHAR" property="correctAnswer" />
+        <result column="explanation" jdbcType="VARCHAR" property="explanation" />
+        <result column="category" jdbcType="VARCHAR" property="category" />
+        <result column="difficulty" jdbcType="VARCHAR" property="difficulty" />
+        <result column="score" jdbcType="INTEGER" property="score" />
+        <result column="creator_id" jdbcType="VARCHAR" property="creatorId" />
+        <result column="creator_name" jdbcType="VARCHAR" property="creatorName" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <select id="selectQuestionBankById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM question_bank WHERE id = #{id}
+    </select>
+</mapper>

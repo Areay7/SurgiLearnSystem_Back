@@ -13,6 +13,7 @@
         <result column="department" jdbcType="VARCHAR" property="department" />
         <result column="position" jdbcType="VARCHAR" property="position" />
         <result column="employee_id" jdbcType="VARCHAR" property="employeeId" />
+        <result column="user_type" jdbcType="INTEGER" property="userType" />
         <result column="status" jdbcType="VARCHAR" property="status" />
         <result column="enrollment_date" jdbcType="DATE" property="enrollmentDate" />
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />

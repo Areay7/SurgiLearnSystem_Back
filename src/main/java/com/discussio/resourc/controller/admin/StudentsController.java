@@ -30,20 +30,61 @@ public class StudentsController extends BaseController {
 
     @ApiOperation(value = "学员记录管理列表", notes = "学员记录管理列表")
     @GetMapping("/list")
-    public ResultTable Studentslist(Tablepar tablepar) {
+    public ResultTable Studentslist(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String searchText,
+            @RequestParam(required = false) String studentName,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String employeeId,
+            @RequestParam(required = false) Integer userType,
+            @RequestParam(required = false) String status) {
         QueryWrapper<Students> queryWrapper = new QueryWrapper<>();
-        if (tablepar != null && tablepar.getSearchText() != null && !tablepar.getSearchText().isEmpty()) {
-            queryWrapper.like("student_name", tablepar.getSearchText())
-                    .or().like("phone", tablepar.getSearchText())
-                    .or().like("employee_id", tablepar.getSearchText());
+        
+        // 学员姓名搜索
+        if (studentName != null && !studentName.trim().isEmpty()) {
+            queryWrapper.like("student_name", studentName.trim());
         }
         
-        PageHelper.startPage(tablepar != null && tablepar.getPage() != null ? tablepar.getPage() : 1, 
-                           tablepar != null && tablepar.getLimit() != null ? tablepar.getLimit() : 10);
-        List<Students> list = studentsService.selectStudentsList(queryWrapper);
-        PageInfo<Students> page = new PageInfo<>(list);
+        // 手机号搜索
+        if (phone != null && !phone.trim().isEmpty()) {
+            queryWrapper.like("phone", phone.trim());
+        }
         
-        return pageTable(page.getList(), page.getTotal());
+        // 员工编号搜索
+        if (employeeId != null && !employeeId.trim().isEmpty()) {
+            queryWrapper.like("employee_id", employeeId.trim());
+        }
+        
+        // 用户类型筛选
+        if (userType != null) {
+            queryWrapper.eq("user_type", userType);
+        }
+        
+        // 状态筛选
+        if (status != null && !status.trim().isEmpty()) {
+            queryWrapper.eq("status", status.trim());
+        }
+        
+        // 通用搜索（兼容旧接口）
+        if (searchText != null && !searchText.trim().isEmpty()) {
+            queryWrapper.and(wrapper -> wrapper
+                .like("student_name", searchText)
+                .or()
+                .like("phone", searchText)
+                .or()
+                .like("employee_id", searchText)
+            );
+        }
+        
+        // 排序：按创建时间倒序
+        queryWrapper.orderByDesc("create_time");
+        
+        PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 10);
+        List<Students> list = studentsService.selectStudentsList(queryWrapper);
+        PageInfo<Students> pageInfo = new PageInfo<>(list);
+        
+        return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
     @ApiOperation(value = "学员记录管理新增", notes = "学员记录管理新增")

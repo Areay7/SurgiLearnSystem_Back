@@ -16,4 +16,12 @@ public interface IStudentsService extends IService<Students> {
     int updateStudents(Students students);
     int deleteStudentsByIds(String ids);
     int deleteStudentsById(Long id);
+    /**
+     * 根据手机号查询学员记录
+     */
+    Students selectStudentsByPhone(String phone);
+    /**
+     * 根据手机号更新学员记录
+     */
+    int updateStudentsByPhone(String phone, Students students);
 }

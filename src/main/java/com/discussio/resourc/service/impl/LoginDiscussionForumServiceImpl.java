@@ -3,7 +3,9 @@ package com.discussio.resourc.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.discussio.resourc.mapper.auto.LoginDiscussionForumMapper;
 import com.discussio.resourc.model.auto.LoginDiscussionForum;
+import com.discussio.resourc.model.auto.Students;
 import com.discussio.resourc.service.LoginDiscussionForumService;
+import com.discussio.resourc.service.IStudentsService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.slf4j.Logger;
@@ -39,6 +41,9 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
     
     @Autowired
     private LoginDiscussionForumMapper loginDiscussionForumMapper;
+    
+    @Autowired(required = false)
+    private IStudentsService studentsService;
     
     // 记录每个用户的登录尝试次数
     private Map<String, Integer> attemptCounts = new HashMap<>();
@@ -103,6 +108,46 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
             attemptCounts.remove(username);
             logger.info("登录成功 - 用户名: {}", username);
             System.out.println("登录成功");
+            
+            // 检查并创建 students 记录（如果不存在）
+            if (studentsService != null) {
+                try {
+                    Students student = studentsService.selectStudentsByPhone(username.trim());
+                    if (student == null) {
+                        // 创建新的 students 记录
+                        Students newStudent = new Students();
+                        newStudent.setPhone(username.trim());
+                        newStudent.setStudentName(""); // 待用户完善
+                        // 根据 login_discussion_forum 的 userType 映射到 students 的 user_type
+                        // userType: 0=普通用户 -> user_type: 1=学员
+                        // userType: 1=管理员 -> user_type: 3=管理员
+                        Integer userType = user.getUserType();
+                        newStudent.setUserType(userType != null && userType == 1 ? 3 : 1);
+                        newStudent.setStatus("正常");
+                        newStudent.setCreateTime(new Date());
+                        newStudent.setUpdateTime(new Date());
+                        studentsService.insertStudents(newStudent);
+                        logger.info("自动创建学员记录成功 - 手机号: {}", username);
+                    } else {
+                        // 如果 students 记录存在，同步 user_type（如果不同步）
+                        Integer loginUserType = user.getUserType();
+                        Integer studentUserType = student.getUserType();
+                        if (loginUserType != null) {
+                            Integer expectedUserType = loginUserType == 1 ? 3 : 1;
+                            if (studentUserType == null || !studentUserType.equals(expectedUserType)) {
+                                student.setUserType(expectedUserType);
+                                student.setUpdateTime(new Date());
+                                studentsService.updateStudents(student);
+                                logger.info("同步学员记录用户类型 - 手机号: {}, 类型: {}", username, expectedUserType);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("检查/创建学员记录失败 - 手机号: {}, 错误: {}", username, e.getMessage());
+                    // 不影响登录流程，只记录警告
+                }
+            }
+            
             return true;
         } catch (Exception e) {
             logger.error("登录异常 - 用户名: {}, 错误: {}", username, e.getMessage(), e);
@@ -135,11 +180,41 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
             LoginDiscussionForum newUser = new LoginDiscussionForum();
             newUser.setUsername(username.trim());
             newUser.setPassword(encryptSHA1(password));
+            // 默认普通用户；如果这是系统第一个用户，则设置为管理员（方便初始化）
+            long userCount = this.count();
+            Integer userType = userCount == 0 ? 1 : 0; // 1=管理员, 0=普通用户
+            newUser.setUserType(userType);
             boolean saved = this.save(newUser);
             
             if (saved) {
                 passwordChangeDates.put(username, LocalDate.now());
                 logger.info("用户注册成功 - {}", username);
+                
+                // 自动创建对应的 students 记录
+                if (studentsService != null) {
+                    try {
+                        Students student = studentsService.selectStudentsByPhone(username.trim());
+                        if (student == null) {
+                            // 创建新的 students 记录
+                            Students newStudent = new Students();
+                            newStudent.setPhone(username.trim());
+                            newStudent.setStudentName(""); // 待用户完善
+                            // 映射 userType: 0=普通用户(学员) -> 1, 1=管理员 -> 3
+                            // 但注册时默认是普通用户，所以设为学员(1)
+                            // 如果是第一个用户(管理员)，设为管理员(3)
+                            newStudent.setUserType(userType == 1 ? 3 : 1); // 1=学员, 3=管理员
+                            newStudent.setStatus("正常");
+                            newStudent.setCreateTime(new Date());
+                            newStudent.setUpdateTime(new Date());
+                            studentsService.insertStudents(newStudent);
+                            logger.info("自动创建学员记录成功 - 手机号: {}", username);
+                        }
+                    } catch (Exception e) {
+                        logger.warn("自动创建学员记录失败 - 手机号: {}, 错误: {}", username, e.getMessage());
+                        // 不影响注册流程，只记录警告
+                    }
+                }
+                
                 return true;
             } else {
                 logger.error("用户注册失败 - 保存失败");

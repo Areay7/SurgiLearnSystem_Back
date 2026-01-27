@@ -1,11 +1,18 @@
 package com.discussio.resourc.controller;
 
+import com.discussio.resourc.common.config.MultiFormatDateDeserializer;
 import com.discussio.resourc.common.domain.AjaxResult;
+import com.discussio.resourc.model.auto.Students;
 import com.discussio.resourc.service.LoginDiscussionForumService;
+import com.discussio.resourc.service.IStudentsService;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
 
 /**
  * 登录控制器
@@ -18,6 +25,9 @@ public class LoginController {
     
     @Autowired
     private LoginDiscussionForumService loginService;
+    
+    @Autowired(required = false)
+    private IStudentsService studentsService;
 
     @ApiOperation(value = "用户登录", notes = "使用手机号和密码登录")
     @PostMapping("/login")
@@ -33,8 +43,13 @@ public class LoginController {
             
             boolean success = loginService.loginDiscussionForum(request.getPhone().trim(), request.getPassword());
             if (success) {
-                String token = loginService.generateToken(request.getPhone().trim());
-                return AjaxResult.success("登录成功", token);
+                String username = request.getPhone().trim();
+                String token = loginService.generateToken(username);
+                com.discussio.resourc.model.auto.LoginDiscussionForum user = loginService.getUserInfo(username);
+                java.util.Map<String, Object> data = new java.util.HashMap<>();
+                data.put("token", token);
+                data.put("userType", user != null && user.getUserType() != null ? user.getUserType() : 0);
+                return AjaxResult.success("登录成功", data);
             } else {
                 return AjaxResult.error("用户名或密码错误");
             }
@@ -149,6 +164,102 @@ public class LoginController {
             return AjaxResult.error("获取用户信息失败：" + e.getMessage());
         }
     }
+    
+    @ApiOperation(value = "获取学员详细信息", notes = "根据手机号获取学员详细信息（来自 students 表）")
+    @GetMapping("/studentInfo")
+    public AjaxResult getStudentInfo(@RequestParam String phone) {
+        try {
+            if (studentsService == null) {
+                return AjaxResult.error("学员服务未启用");
+            }
+            Students student = studentsService.selectStudentsByPhone(phone);
+            if (student != null) {
+                return AjaxResult.success(student);
+            } else {
+                return AjaxResult.error("未找到学员记录");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("获取学员信息失败：" + e.getMessage());
+        }
+    }
+    
+    @ApiOperation(value = "更新学员详细信息", notes = "根据手机号更新学员详细信息（来自 students 表）")
+    @PostMapping("/updateStudentInfo")
+    public AjaxResult updateStudentInfo(@RequestBody UpdateStudentInfoRequest request) {
+        try {
+            if (studentsService == null) {
+                return AjaxResult.error("学员服务未启用");
+            }
+            if (request.getPhone() == null || request.getPhone().trim().isEmpty()) {
+                return AjaxResult.error("手机号不能为空");
+            }
+            
+            Students student = studentsService.selectStudentsByPhone(request.getPhone());
+            if (student == null) {
+                // 如果记录不存在，创建新记录
+                student = new Students();
+                student.setPhone(request.getPhone().trim());
+                student.setCreateTime(new Date());
+                
+                // 根据登录用户的 userType 设置 user_type
+                com.discussio.resourc.model.auto.LoginDiscussionForum user = loginService.getUserInfo(request.getPhone());
+                if (user != null && user.getUserType() != null) {
+                    student.setUserType(user.getUserType() == 1 ? 3 : 1); // 1=管理员->3, 0=普通用户->1
+                } else {
+                    student.setUserType(1); // 默认学员
+                }
+            }
+            
+            // 更新字段
+            if (request.getStudentName() != null) {
+                student.setStudentName(request.getStudentName());
+            }
+            if (request.getEmail() != null) {
+                student.setEmail(request.getEmail());
+            }
+            if (request.getGender() != null) {
+                student.setGender(request.getGender());
+            }
+            if (request.getBirthDate() != null) {
+                student.setBirthDate(request.getBirthDate());
+            }
+            if (request.getDepartment() != null) {
+                student.setDepartment(request.getDepartment());
+            }
+            if (request.getPosition() != null) {
+                student.setPosition(request.getPosition());
+            }
+            if (request.getEmployeeId() != null) {
+                student.setEmployeeId(request.getEmployeeId());
+            }
+            if (request.getUserType() != null) {
+                student.setUserType(request.getUserType());
+            }
+            if (request.getStatus() != null) {
+                student.setStatus(request.getStatus());
+            }
+            if (request.getEnrollmentDate() != null) {
+                student.setEnrollmentDate(request.getEnrollmentDate());
+            }
+            
+            student.setUpdateTime(new Date());
+            
+            int result;
+            if (student.getId() == null) {
+                result = studentsService.insertStudents(student);
+            } else {
+                result = studentsService.updateStudents(student);
+            }
+            
+            if (result > 0) {
+                return AjaxResult.success("更新成功");
+            } else {
+                return AjaxResult.error("更新失败");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("更新学员信息失败：" + e.getMessage());
+        }
+    }
 
     // 内部类：登录请求
     public static class LoginRequest {
@@ -258,5 +369,50 @@ public class LoginController {
         public void setUsernames(java.util.List<String> usernames) {
             this.usernames = usernames;
         }
+    }
+    
+    // 内部类：更新学员信息请求
+    public static class UpdateStudentInfoRequest {
+        private String phone;
+        private String studentName;
+        private String email;
+        private String gender;
+        
+        @JsonDeserialize(using = MultiFormatDateDeserializer.class)
+        @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+        private java.util.Date birthDate;
+        
+        private String department;
+        private String position;
+        private String employeeId;
+        private Integer userType;
+        private String status;
+        
+        @JsonDeserialize(using = MultiFormatDateDeserializer.class)
+        @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+        private java.util.Date enrollmentDate;
+
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        public String getStudentName() { return studentName; }
+        public void setStudentName(String studentName) { this.studentName = studentName; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getGender() { return gender; }
+        public void setGender(String gender) { this.gender = gender; }
+        public java.util.Date getBirthDate() { return birthDate; }
+        public void setBirthDate(java.util.Date birthDate) { this.birthDate = birthDate; }
+        public String getDepartment() { return department; }
+        public void setDepartment(String department) { this.department = department; }
+        public String getPosition() { return position; }
+        public void setPosition(String position) { this.position = position; }
+        public String getEmployeeId() { return employeeId; }
+        public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
+        public Integer getUserType() { return userType; }
+        public void setUserType(Integer userType) { this.userType = userType; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public java.util.Date getEnrollmentDate() { return enrollmentDate; }
+        public void setEnrollmentDate(java.util.Date enrollmentDate) { this.enrollmentDate = enrollmentDate; }
     }
 }

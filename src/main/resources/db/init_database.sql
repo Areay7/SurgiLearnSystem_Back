@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `login_discussion_forum` (
   `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(100) NOT NULL COMMENT '用户名（手机号）',
   `password` VARCHAR(255) NOT NULL COMMENT '密码（加密后）',
+  `user_type` INT(11) DEFAULT 0 COMMENT '用户类型 0-普通用户 1-管理员',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录用户表';
@@ -316,6 +317,7 @@ CREATE TABLE IF NOT EXISTS `students` (
   `department` VARCHAR(100) DEFAULT NULL COMMENT '部门',
   `position` VARCHAR(100) DEFAULT NULL COMMENT '职位',
   `employee_id` VARCHAR(50) DEFAULT NULL COMMENT '员工编号',
+  `user_type` INT(11) DEFAULT 1 COMMENT '用户类型 1-学员 2-讲师 3-其他(管理员)',
   `status` VARCHAR(50) DEFAULT NULL COMMENT '状态',
   `enrollment_date` DATE DEFAULT NULL COMMENT '入学日期',
   `create_time` DATETIME DEFAULT NULL COMMENT '创建时间',
@@ -323,7 +325,8 @@ CREATE TABLE IF NOT EXISTS `students` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_phone` (`phone`),
   KEY `idx_employee_id` (`employee_id`),
-  KEY `idx_department` (`department`)
+  KEY `idx_department` (`department`),
+  KEY `idx_user_type` (`user_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学员记录管理表';
 
 -- 学习进度跟踪表

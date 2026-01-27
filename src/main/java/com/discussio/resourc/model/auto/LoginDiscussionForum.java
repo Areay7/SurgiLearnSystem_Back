@@ -16,4 +16,8 @@ public class LoginDiscussionForum {
     private String username;
     private String password;
     private String nickname;
+    /**
+     * 用户类型 0-普通用户 1-管理员
+     */
+    private Integer userType;
 }

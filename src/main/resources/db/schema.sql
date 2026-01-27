@@ -9,9 +9,11 @@ CREATE TABLE IF NOT EXISTS `login_discussion_forum` (
   `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(100) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
+  `nickname` VARCHAR(100) DEFAULT NULL COMMENT '昵称',
+  `user_type` INT(11) DEFAULT 0 COMMENT '用户类型 0-普通用户 1-管理员',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录用户表';
 
 -- 讨论论坛模块表
 CREATE TABLE IF NOT EXISTS `discussion_forum` (

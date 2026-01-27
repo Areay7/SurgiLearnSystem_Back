@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.discussio.resourc.mapper.auto.ExamResultMapper">
+    <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.ExamResult">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="exam_id" jdbcType="BIGINT" property="examId" />
+        <result column="exam_name" jdbcType="VARCHAR" property="examName" />
+        <result column="student_id" jdbcType="VARCHAR" property="studentId" />
+        <result column="student_name" jdbcType="VARCHAR" property="studentName" />
+        <result column="answers" jdbcType="VARCHAR" property="answers" />
+        <result column="total_score" jdbcType="INTEGER" property="totalScore" />
+        <result column="obtained_score" jdbcType="INTEGER" property="obtainedScore" />
+        <result column="pass_score" jdbcType="INTEGER" property="passScore" />
+        <result column="status" jdbcType="VARCHAR" property="status" />
+        <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
+        <result column="submit_time" jdbcType="TIMESTAMP" property="submitTime" />
+        <result column="duration" jdbcType="INTEGER" property="duration" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <select id="selectExamResultById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT * FROM exam_result WHERE id = #{id}
+    </select>
+</mapper>
