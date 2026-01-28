@@ -6,6 +6,8 @@ import com.discussio.resourc.common.domain.AjaxResult;
 import com.discussio.resourc.common.domain.ResultTable;
 import com.discussio.resourc.model.auto.Training;
 import com.discussio.resourc.model.auto.TrainingMaterial;
+import com.discussio.resourc.model.auto.TrainingContentBlock;
+import com.discussio.resourc.service.ITrainingContentBlockService;
 import com.discussio.resourc.service.ITrainingMaterialService;
 import com.discussio.resourc.service.ITrainingService;
 import com.github.pagehelper.PageHelper;
@@ -33,6 +35,9 @@ public class TrainingController extends BaseController {
 
     @Autowired
     private ITrainingMaterialService trainingMaterialService;
+
+    @Autowired
+    private ITrainingContentBlockService trainingContentBlockService;
 
     @ApiOperation(value = "培训列表", notes = "分页、搜索、类型/状态过滤")
     @GetMapping("/list")
@@ -105,6 +110,24 @@ public class TrainingController extends BaseController {
                                        @RequestBody List<TrainingMaterial> items) {
         try {
             int n = trainingMaterialService.replaceTrainingMaterials(trainingId, items);
+            return AjaxResult.success("保存成功", n);
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "获取培训资料白板内容块", notes = "按 sort_order 从上往下")
+    @GetMapping("/content-blocks/{trainingId}")
+    public AjaxResult listContentBlocks(@PathVariable("trainingId") Long trainingId) {
+        return AjaxResult.success(trainingContentBlockService.listByTrainingId(trainingId));
+    }
+
+    @ApiOperation(value = "保存培训资料白板", notes = "替换该培训的所有内容块（文字/图片/视频/PDF/文件）")
+    @PostMapping("/content-blocks/{trainingId}")
+    public AjaxResult saveContentBlocks(@PathVariable("trainingId") Long trainingId,
+                                        @RequestBody List<TrainingContentBlock> items) {
+        try {
+            int n = trainingContentBlockService.replaceBlocks(trainingId, items);
             return AjaxResult.success("保存成功", n);
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
