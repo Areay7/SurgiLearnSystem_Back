@@ -25,6 +25,10 @@ public class CertificateIssue {
     private Date expiryDate;
     private String certificateStatus;
     private String issueNote;
+    /** 盖章图片存储路径（服务端文件路径或可访问路径） */
+    private String stampPath;
+    /** 证书正文（可编辑） */
+    private String contentText;
     private Date createTime;
     private Date updateTime;
 }

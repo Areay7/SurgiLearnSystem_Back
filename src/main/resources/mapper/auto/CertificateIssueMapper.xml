@@ -14,6 +14,8 @@
         <result column="expiry_date" jdbcType="TIMESTAMP" property="expiryDate" />
         <result column="certificate_status" jdbcType="VARCHAR" property="certificateStatus" />
         <result column="issue_note" jdbcType="VARCHAR" property="issueNote" />
+        <result column="stamp_path" jdbcType="VARCHAR" property="stampPath" />
+        <result column="content_text" jdbcType="LONGVARCHAR" property="contentText" />
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
         <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
     </resultMap>
