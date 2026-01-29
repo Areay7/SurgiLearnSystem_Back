@@ -36,3 +36,4 @@ Thumbs.db
 # application-dev.yml
 # application-prod.yml
 uploads/
+*.mp4
