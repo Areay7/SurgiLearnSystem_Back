@@ -44,7 +44,7 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
     @Autowired
     private LoginDiscussionForumMapper loginDiscussionForumMapper;
     
-    @Autowired(required = false)
+    @Autowired
     private IStudentsService studentsService;
     
     // 记录每个用户的登录尝试次数
@@ -119,7 +119,7 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
                         // 创建新的 students 记录
                         Students newStudent = new Students();
                         newStudent.setPhone(username.trim());
-                        newStudent.setStudentName(""); // 待用户完善
+                        newStudent.setStudentName("待完善"); // insertStudents 要求姓名非空
                         // 根据 login_discussion_forum 的 userType 映射到 students 的 user_type
                         // userType: 0=普通用户 -> user_type: 1=学员
                         // userType: 1=管理员 -> user_type: 3=管理员
@@ -200,7 +200,7 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
                             // 创建新的 students 记录
                             Students newStudent = new Students();
                             newStudent.setPhone(username.trim());
-                            newStudent.setStudentName(""); // 待用户完善
+                            newStudent.setStudentName("待完善"); // insertStudents 要求姓名非空
                             // 映射 userType: 0=普通用户(学员) -> 1, 1=管理员 -> 3
                             // 但注册时默认是普通用户，所以设为学员(1)
                             // 如果是第一个用户(管理员)，设为管理员(3)
@@ -247,6 +247,26 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
         }
         
         // 4. 更新密码（加密存储）
+        user.setPassword(encryptSHA1(newPassword));
+        this.updateById(user);
+        passwordChangeDates.put(username, LocalDate.now());
+        return true;
+    }
+
+    /**
+     * 管理员重置用户密码（跳过旧密码校验，但仍检查密码强度）
+     */
+    @Override
+    public boolean adminResetPassword(String username, String newPassword) {
+        LoginDiscussionForum user = loginDiscussionForumMapper.findBydiscussionForumname(username);
+        if (user == null) {
+            return false;
+        }
+
+        if (!isStrongPassword(newPassword)) {
+            return false;
+        }
+
         user.setPassword(encryptSHA1(newPassword));
         this.updateById(user);
         passwordChangeDates.put(username, LocalDate.now());

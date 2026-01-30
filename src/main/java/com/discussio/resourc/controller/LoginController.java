@@ -26,7 +26,7 @@ public class LoginController {
     @Autowired
     private LoginDiscussionForumService loginService;
     
-    @Autowired(required = false)
+    @Autowired
     private IStudentsService studentsService;
 
     @ApiOperation(value = "用户登录", notes = "使用手机号和密码登录")
@@ -77,6 +77,25 @@ public class LoginController {
             
             boolean success = loginService.registerUser(request.getPhone().trim(), request.getPassword());
             if (success) {
+                // 确保学员记录存在（注册用户默认为学员）
+                if (studentsService != null) {
+                    try {
+                        Students student = studentsService.selectStudentsByPhone(request.getPhone().trim());
+                        if (student == null) {
+                            Students newStudent = new Students();
+                            newStudent.setPhone(request.getPhone().trim());
+                            newStudent.setStudentName("待完善"); // 注册时无姓名，insertStudents 要求非空
+                            newStudent.setUserType(1); // 1=学员
+                            newStudent.setStatus("正常");
+                            newStudent.setCreateTime(new Date());
+                            newStudent.setUpdateTime(new Date());
+                            studentsService.insertStudents(newStudent);
+                        }
+                    } catch (Exception ex) {
+                        // 记录日志但不影响注册结果
+                        ex.printStackTrace();
+                    }
+                }
                 return AjaxResult.success("注册成功，请登录");
             } else {
                 return AjaxResult.error("用户名已存在");
@@ -93,8 +112,8 @@ public class LoginController {
     public AjaxResult changePassword(@RequestBody ChangePasswordRequest request) {
         try {
             boolean success = loginService.changePassword(
-                request.getPhone(), 
-                request.getOldPassword(), 
+                request.getPhone(),
+                request.getOldPassword(),
                 request.getNewPassword()
             );
             if (success) {
@@ -180,6 +199,45 @@ public class LoginController {
             }
         } catch (Exception e) {
             return AjaxResult.error("获取学员信息失败：" + e.getMessage());
+        }
+    }
+    
+    @ApiOperation(value = "管理员重置用户密码", notes = "仅管理员可用，用于在学员管理中重置任意用户密码")
+    @PostMapping("/adminResetPassword")
+    public AjaxResult adminResetPassword(@RequestBody AdminResetPasswordRequest request,
+                                         @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            // 校验管理员身份
+            if (authHeader == null || authHeader.trim().isEmpty()) {
+                return AjaxResult.error(401, "未授权：缺少认证信息");
+            }
+            String token = authHeader.startsWith("Bearer ") ? authHeader.substring("Bearer ".length()).trim() : authHeader.trim();
+            String username = loginService.parseUsernameFromToken(token);
+            if (username == null || username.trim().isEmpty()) {
+                return AjaxResult.error(401, "未授权：Token 无效");
+            }
+
+            com.discussio.resourc.model.auto.LoginDiscussionForum adminUser = loginService.getUserInfo(username);
+            // userType: 0=普通用户 1=管理员
+            if (adminUser == null || adminUser.getUserType() == null || adminUser.getUserType() != 1) {
+                return AjaxResult.error(403, "仅管理员可重置用户密码");
+            }
+
+            if (request.getPhone() == null || request.getPhone().trim().isEmpty()) {
+                return AjaxResult.error("手机号不能为空");
+            }
+            if (request.getNewPassword() == null || request.getNewPassword().trim().isEmpty()) {
+                return AjaxResult.error("新密码不能为空");
+            }
+
+            boolean success = loginService.adminResetPassword(request.getPhone().trim(), request.getNewPassword());
+            if (success) {
+                return AjaxResult.success("密码已重置");
+            } else {
+                return AjaxResult.error("密码重置失败，新密码可能不符合安全要求");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("密码重置失败：" + e.getMessage());
         }
     }
     
@@ -331,6 +389,28 @@ public class LoginController {
 
         public void setOldPassword(String oldPassword) {
             this.oldPassword = oldPassword;
+        }
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
+        }
+    }
+
+    // 内部类：管理员重置密码请求
+    public static class AdminResetPasswordRequest {
+        private String phone;
+        private String newPassword;
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public void setPhone(String phone) {
+            this.phone = phone;
         }
 
         public String getNewPassword() {

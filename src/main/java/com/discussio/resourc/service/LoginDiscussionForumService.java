@@ -10,6 +10,10 @@ public interface LoginDiscussionForumService extends IService<LoginDiscussionFor
     boolean loginDiscussionForum(String username, String password);
     boolean registerUser(String username, String password);
     boolean changePassword(String username, String oldPassword, String newPassword);
+    /**
+     * 管理员重置指定用户密码（无需旧密码）
+     */
+    boolean adminResetPassword(String username, String newPassword);
     String generateToken(String username);
     /**
      * 从 JWT token 中解析用户名（token 不含 Bearer 前缀）
