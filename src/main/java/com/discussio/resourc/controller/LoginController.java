@@ -229,6 +229,12 @@ public class LoginController {
             if (request.getPosition() != null) {
                 student.setPosition(request.getPosition());
             }
+            if (request.getTitle() != null) {
+                student.setTitle(request.getTitle());
+            }
+            if (request.getLevel() != null) {
+                student.setLevel(request.getLevel());
+            }
             if (request.getEmployeeId() != null) {
                 student.setEmployeeId(request.getEmployeeId());
             }
@@ -384,6 +390,10 @@ public class LoginController {
         
         private String department;
         private String position;
+        /** 职称：护士/护师/主管护师/副主任护师/主任护师 */
+        private String title;
+        /** 层级：N0/N1/N2/N3/N4 */
+        private String level;
         private String employeeId;
         private Integer userType;
         private String status;
@@ -406,6 +416,10 @@ public class LoginController {
         public void setDepartment(String department) { this.department = department; }
         public String getPosition() { return position; }
         public void setPosition(String position) { this.position = position; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public String getLevel() { return level; }
+        public void setLevel(String level) { this.level = level; }
         public String getEmployeeId() { return employeeId; }
         public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
         public Integer getUserType() { return userType; }

@@ -54,9 +54,9 @@ jwt:
   secret: SurgiLearnSystemSecretKeyForJWTTokenGeneration2024SecureKey  # JWT密钥，至少32个字符，生产环境请修改
   expiration: 86400000  # Token过期时间（毫秒），默认24小时
 
-# 文件上传配置
+# 文件上传配置（与后端 @Value("${file.upload-path}") 一致）
 file:
-  upload-path: /Users/areay/Documents/word/word_6_/uploads  # 文件上传路径，相对路径或绝对路径
+  upload-path: /Users/areay/Documents/word/word_6_/SurgiLearnSystem/uploads  # 上传根目录，学习资料会存于 uploads/materials
   upload-max-size-mb: 500  # 学习资料上传大小限制（MB）
 
 logging:

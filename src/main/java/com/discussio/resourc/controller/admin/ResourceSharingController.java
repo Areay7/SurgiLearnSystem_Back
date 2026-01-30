@@ -45,7 +45,7 @@ public class ResourceSharingController extends BaseController {
     @Autowired
     private IResourceSharingService resourceSharingService;
     
-    @Value("${file.upload.path:./uploads}")
+    @Value("${file.upload-path:./uploads}")
     private String uploadPath;
 
     @ApiOperation(value = "根据资源类型获取资源列表", notes = "根据资源类型获取资源列表")

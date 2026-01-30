@@ -8,6 +8,8 @@ import com.discussio.resourc.service.LoginDiscussionForumService;
 import com.discussio.resourc.service.IStudentsService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -270,6 +272,25 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
         } catch (Exception e) {
             logger.error("生成Token失败 - 用户名: {}, 错误: {}", username, e.getMessage(), e);
             throw new RuntimeException("生成Token失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public String parseUsernameFromToken(String token) {
+        try {
+            if (token == null || token.trim().isEmpty()) return null;
+            String secretKey = ensureKeyLength(jwtSecret);
+            Claims claims = Jwts.parser()
+                    .setSigningKey(secretKey)
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims != null ? claims.getSubject() : null;
+        } catch (JwtException e) {
+            logger.warn("Token解析失败: {}", e.getMessage());
+            return null;
+        } catch (Exception e) {
+            logger.warn("Token解析异常: {}", e.getMessage());
+            return null;
         }
     }
     

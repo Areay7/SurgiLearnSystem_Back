@@ -39,8 +39,13 @@ public class LearningMaterialController extends BaseController {
     @Autowired
     private ILearningMaterialService materialService;
 
-    @Value("${file.upload.path:./uploads/materials}")
-    private String uploadPath;
+    /** 上传根目录（与 application.yml file.upload-path 一致） */
+    @Value("${file.upload-path:./uploads}")
+    private String uploadBasePath;
+
+    private String getMaterialsDir() {
+        return uploadBasePath + File.separator + "materials";
+    }
 
     @Value("${file.upload-max-size-mb:500}")
     private long uploadMaxSizeMb;
@@ -149,16 +154,18 @@ public class LearningMaterialController extends BaseController {
                 return AjaxResult.error("不支持的文件类型，仅支持: pdf/doc/docx/ppt/pptx/xls/xlsx/jpg/jpeg/png/gif/mp4/mp3/wav");
             }
 
-            // 创建目录
-            File dir = new File(uploadPath);
-            if (!dir.exists()) dir.mkdirs();
+            String materialsDir = getMaterialsDir();
+            File dir = new File(materialsDir);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
 
             String ext = "";
             if (originalName != null && originalName.contains(".")) {
                 ext = originalName.substring(originalName.lastIndexOf(".")).toLowerCase();
             }
             String uniqueName = UUID.randomUUID().toString() + ext;
-            Path target = Paths.get(uploadPath, uniqueName);
+            Path target = Paths.get(materialsDir, uniqueName);
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
 
             LearningMaterial material = new LearningMaterial();
@@ -190,6 +197,17 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
+    /** 解析资料文件：若为相对路径则基于上传根目录解析 */
+    private File resolveFile(String storedPath) {
+        if (storedPath == null) return null;
+        File f = new File(storedPath);
+        if (f.isAbsolute() && f.exists()) return f;
+        File underBase = new File(uploadBasePath, storedPath);
+        if (underBase.exists()) return underBase;
+        File underMaterials = new File(getMaterialsDir(), new File(storedPath).getName());
+        return underMaterials.exists() ? underMaterials : f;
+    }
+
     @ApiOperation(value = "下载资料文件", notes = "根据ID下载")
     @GetMapping("/download/{id}")
     public ResponseEntity<Resource> download(@PathVariable("id") Long id) {
@@ -198,8 +216,8 @@ public class LearningMaterialController extends BaseController {
             if (material == null || material.getFilePath() == null) {
                 return ResponseEntity.notFound().build();
             }
-            File file = new File(material.getFilePath());
-            if (!file.exists()) {
+            File file = resolveFile(material.getFilePath());
+            if (file == null || !file.exists()) {
                 return ResponseEntity.notFound().build();
             }
             Resource res = new FileSystemResource(file);
@@ -223,8 +241,8 @@ public class LearningMaterialController extends BaseController {
             if (material == null || material.getFilePath() == null) {
                 return ResponseEntity.notFound().build();
             }
-            File file = new File(material.getFilePath());
-            if (!file.exists()) {
+            File file = resolveFile(material.getFilePath());
+            if (file == null || !file.exists()) {
                 return ResponseEntity.notFound().build();
             }
             Resource res = new FileSystemResource(file);
@@ -250,15 +268,18 @@ public class LearningMaterialController extends BaseController {
                     contentType = "application/octet-stream";
                 }
             }
-            return ResponseEntity.ok()
+            ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
-                    // 禁止缓存，避免浏览器用旧的响应头导致预览异常
                     .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                     .header("Pragma", "no-cache")
                     .header("Expires", "0")
                     .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "inline; filename=\"" + (material.getOriginalName() != null ? material.getOriginalName() : file.getName()) + "\"")
-                    .body(res);
+                            "inline; filename=\"" + (material.getOriginalName() != null ? material.getOriginalName() : file.getName()) + "\"");
+            // 视频/大文件：支持 Range 请求，浏览器可流式播放不必一次拉取全部
+            if (name.endsWith(".mp4") || name.endsWith(".pdf")) {
+                builder.header("Accept-Ranges", "bytes");
+            }
+            return builder.body(res);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }

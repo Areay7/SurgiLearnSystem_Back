@@ -41,7 +41,7 @@ public class CertificateIssueController extends BaseController {
     @Autowired
     private ICertificateIssueService certificateIssueService;
 
-    @Value("${file.upload.path:./uploads}")
+    @Value("${file.upload-path:./uploads}")
     private String uploadRoot;
 
     private static final String[] STAMP_ALLOWED_EXT = new String[]{".png", ".jpg", ".jpeg", ".webp"};

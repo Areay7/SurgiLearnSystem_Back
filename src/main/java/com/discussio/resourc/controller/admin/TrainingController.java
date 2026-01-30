@@ -7,9 +7,13 @@ import com.discussio.resourc.common.domain.ResultTable;
 import com.discussio.resourc.model.auto.Training;
 import com.discussio.resourc.model.auto.TrainingMaterial;
 import com.discussio.resourc.model.auto.TrainingContentBlock;
+import com.discussio.resourc.model.auto.LoginDiscussionForum;
+import com.discussio.resourc.model.auto.Students;
 import com.discussio.resourc.service.ITrainingContentBlockService;
 import com.discussio.resourc.service.ITrainingMaterialService;
 import com.discussio.resourc.service.ITrainingService;
+import com.discussio.resourc.service.LoginDiscussionForumService;
+import com.discussio.resourc.service.IStudentsService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
@@ -18,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 import java.util.List;
 
@@ -38,6 +43,12 @@ public class TrainingController extends BaseController {
 
     @Autowired
     private ITrainingContentBlockService trainingContentBlockService;
+
+    @Autowired
+    private LoginDiscussionForumService loginService;
+
+    @Autowired(required = false)
+    private IStudentsService studentsService;
 
     @ApiOperation(value = "培训列表", notes = "分页、搜索、类型/状态过滤")
     @GetMapping("/list")
@@ -72,8 +83,26 @@ public class TrainingController extends BaseController {
 
     @ApiOperation(value = "新增培训")
     @PostMapping("/add")
-    public AjaxResult add(@RequestBody Training training) {
+    public AjaxResult add(@RequestBody Training training, HttpServletRequest request) {
         try {
+            UserRole role = resolveUserRole(request);
+            if (!role.isAdmin && !role.isInstructor) {
+                return AjaxResult.error(403, "无权限操作（仅管理员/讲师可创建培训）");
+            }
+
+            // 讲师创建时，强制讲师为自己
+            if (role.isInstructor && role.student != null) {
+                training.setInstructorId(String.valueOf(role.student.getId()));
+                training.setInstructorName(role.student.getStudentName() != null
+                        ? role.student.getStudentName()
+                        : role.student.getPhone());
+            }
+
+            // 管理员：如果未选择讲师则报错
+            if (role.isAdmin && (training.getInstructorId() == null || training.getInstructorId().trim().isEmpty())) {
+                return AjaxResult.error("请先选择讲师");
+            }
+
             if (training.getCreateTime() == null) training.setCreateTime(new Date());
             if (training.getUpdateTime() == null) training.setUpdateTime(new Date());
             return toAjax(trainingService.insertTraining(training));
@@ -84,8 +113,12 @@ public class TrainingController extends BaseController {
 
     @ApiOperation(value = "修改培训")
     @PostMapping("/edit")
-    public AjaxResult edit(@RequestBody Training training) {
+    public AjaxResult edit(@RequestBody Training training, HttpServletRequest request) {
         try {
+            UserRole role = resolveUserRole(request);
+            if (!role.isAdmin && !role.isInstructor) {
+                return AjaxResult.error(403, "无权限操作（仅管理员/讲师可编辑培训）");
+            }
             return toAjax(trainingService.updateTraining(training));
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
@@ -94,7 +127,11 @@ public class TrainingController extends BaseController {
 
     @ApiOperation(value = "删除培训")
     @DeleteMapping("/remove")
-    public AjaxResult remove(@RequestParam String ids) {
+    public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
+        UserRole role = resolveUserRole(request);
+        if (!role.isAdmin && !role.isInstructor) {
+            return AjaxResult.error(403, "无权限操作（仅管理员/讲师可删除培训）");
+        }
         return toAjax(trainingService.deleteTrainingByIds(ids));
     }
 
@@ -132,6 +169,38 @@ public class TrainingController extends BaseController {
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
         }
+    }
+
+    private static class UserRole {
+        boolean isAdmin;
+        boolean isInstructor;
+        Students student;
+    }
+
+    private UserRole resolveUserRole(HttpServletRequest request) {
+        UserRole r = new UserRole();
+        try {
+            String auth = request.getHeader("Authorization");
+            if (auth == null || auth.trim().isEmpty()) return r;
+            String token = auth.startsWith("Bearer ") ? auth.substring("Bearer ".length()).trim() : auth.trim();
+            String username = loginService.parseUsernameFromToken(token);
+            if (username == null || username.trim().isEmpty()) return r;
+
+            LoginDiscussionForum user = loginService.getUserInfo(username);
+            // 0-普通用户 1-管理员
+            if (user != null && user.getUserType() != null && user.getUserType() == 1) {
+                r.isAdmin = true;
+            }
+            if (studentsService != null) {
+                Students s = studentsService.selectStudentsByPhone(username);
+                r.student = s;
+                if (s != null && s.getUserType() != null && s.getUserType() == 2) {
+                    r.isInstructor = true;
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        return r;
     }
 }
 

@@ -27,6 +27,10 @@ public class Students {
     
     private String department;
     private String position;
+    /** 职称：护士/护师/主管护师/副主任护师/主任护师 */
+    private String title;
+    /** 层级：N0/N1/N2/N3/N4 */
+    private String level;
     private String employeeId;
     private Integer userType; // 用户类型 1-学员 2-讲师 3-其他(管理员)
     private String status;
