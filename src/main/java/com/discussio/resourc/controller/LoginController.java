@@ -5,6 +5,7 @@ import com.discussio.resourc.common.domain.AjaxResult;
 import com.discussio.resourc.model.auto.Students;
 import com.discussio.resourc.service.LoginDiscussionForumService;
 import com.discussio.resourc.service.IStudentsService;
+import com.discussio.resourc.service.IPermissionCheckService;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.annotations.Api;
@@ -12,6 +13,7 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 
 /**
@@ -28,6 +30,34 @@ public class LoginController {
     
     @Autowired
     private IStudentsService studentsService;
+
+    @Autowired(required = false)
+    private IPermissionCheckService permissionCheckService;
+
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "获取当前用户权限列表", notes = "需登录，返回权限代码列表")
+    @GetMapping("/myPermissions")
+    public AjaxResult getMyPermissions(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            if (authHeader == null || authHeader.trim().isEmpty()) {
+                return AjaxResult.success(java.util.Collections.emptyList());
+            }
+            String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7).trim() : authHeader.trim();
+            String username = loginService.parseUsernameFromToken(token);
+            if (username == null || username.isEmpty()) {
+                return AjaxResult.success(java.util.Collections.emptyList());
+            }
+            if (permissionCheckService == null) {
+                return AjaxResult.success(java.util.Collections.emptyList());
+            }
+            java.util.List<String> codes = permissionCheckService.getUserPermissionCodes(username);
+            return AjaxResult.success(codes);
+        } catch (Exception e) {
+            return AjaxResult.success(java.util.Collections.emptyList());
+        }
+    }
 
     @ApiOperation(value = "用户登录", notes = "使用手机号和密码登录")
     @PostMapping("/login")
@@ -202,25 +232,23 @@ public class LoginController {
         }
     }
     
-    @ApiOperation(value = "管理员重置用户密码", notes = "仅管理员可用，用于在学员管理中重置任意用户密码")
+    @ApiOperation(value = "管理员重置用户密码", notes = "需 user:resetPwd 权限")
     @PostMapping("/adminResetPassword")
     public AjaxResult adminResetPassword(@RequestBody AdminResetPasswordRequest request,
-                                         @RequestHeader(value = "Authorization", required = false) String authHeader) {
+                                         @RequestHeader(value = "Authorization", required = false) String authHeader,
+                                         HttpServletRequest httpRequest) {
         try {
-            // 校验管理员身份
+            // 校验管理员身份或权限
             if (authHeader == null || authHeader.trim().isEmpty()) {
                 return AjaxResult.error(401, "未授权：缺少认证信息");
+            }
+            if (permissionHelper != null && !permissionHelper.hasPermission(httpRequest, "user:resetPwd")) {
+                return AjaxResult.error(403, "无权限重置用户密码");
             }
             String token = authHeader.startsWith("Bearer ") ? authHeader.substring("Bearer ".length()).trim() : authHeader.trim();
             String username = loginService.parseUsernameFromToken(token);
             if (username == null || username.trim().isEmpty()) {
                 return AjaxResult.error(401, "未授权：Token 无效");
-            }
-
-            com.discussio.resourc.model.auto.LoginDiscussionForum adminUser = loginService.getUserInfo(username);
-            // userType: 0=普通用户 1=管理员
-            if (adminUser == null || adminUser.getUserType() == null || adminUser.getUserType() != 1) {
-                return AjaxResult.error(403, "仅管理员可重置用户密码");
             }
 
             if (request.getPhone() == null || request.getPhone().trim().isEmpty()) {

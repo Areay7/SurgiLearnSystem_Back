@@ -36,6 +36,8 @@ import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 
+import javax.servlet.http.HttpServletRequest;
+
 /**
  * 资源共享平台 Controller
  */
@@ -53,9 +55,15 @@ public class ResourceSharingController extends BaseController {
     @Value("${file.upload-path:./uploads}")
     private String uploadPath;
 
-    @ApiOperation(value = "根据资源类型获取资源列表", notes = "根据资源类型获取资源列表")
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "根据资源类型获取资源列表", notes = "需 resource:view 权限")
     @GetMapping("/listByType")
-    public AjaxResult listByType(@RequestParam String resourceType) {
+    public AjaxResult listByType(@RequestParam String resourceType, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:view")) {
+            return AjaxResult.error(403, "无权限查看资源");
+        }
         try {
             return AjaxResult.success(resourceSharingService.getResourceSharingListByResourceType(resourceType));
         } catch (Exception e) {
@@ -63,7 +71,7 @@ public class ResourceSharingController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "资源共享平台列表", notes = "资源共享平台列表")
+    @ApiOperation(value = "资源共享平台列表", notes = "需 resource:view 权限")
     @GetMapping("/list")
     public ResultTable ResourceSharinglist(
             @RequestParam(required = false) Integer page,
@@ -71,7 +79,11 @@ public class ResourceSharingController extends BaseController {
             @RequestParam(required = false) String searchText,
             @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String resourceName,
-            @RequestParam(required = false) String uploadUser) {
+            @RequestParam(required = false) String uploadUser,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看资源", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<ResourceSharing> queryWrapper = new QueryWrapper<>();
         
         // 资源名称搜索
@@ -108,38 +120,54 @@ public class ResourceSharingController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "资源共享平台新增", notes = "资源共享平台新增")
+    @ApiOperation(value = "资源共享平台新增", notes = "需 resource:upload 权限")
     @PostMapping("/add")
-    public AjaxResult ResourceSharingadd(@RequestBody ResourceSharing resourceSharing) {
+    public AjaxResult ResourceSharingadd(@RequestBody ResourceSharing resourceSharing, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:upload")) {
+            return AjaxResult.error(403, "无权限上传资源");
+        }
         return toAjax(resourceSharingService.insertResourceSharing(resourceSharing));
     }
 
-    @ApiOperation(value = "资源共享平台删除", notes = "资源共享平台删除")
+    @ApiOperation(value = "资源共享平台删除", notes = "需 resource:delete 权限")
     @DeleteMapping("/remove")
-    public AjaxResult ResourceSharingremove(@RequestParam String ids) {
+    public AjaxResult ResourceSharingremove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:delete")) {
+            return AjaxResult.error(403, "无权限删除资源");
+        }
         return toAjax(resourceSharingService.deleteResourceSharingByIds(ids));
     }
 
-    @ApiOperation(value = "资源共享平台详情", notes = "获取资源共享平台详情")
+    @ApiOperation(value = "资源共享平台详情", notes = "需 resource:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult ResourceSharingdetail(@PathVariable("id") Long id) {
+    public AjaxResult ResourceSharingdetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:view")) {
+            return AjaxResult.error(403, "无权限查看资源");
+        }
         return AjaxResult.success(resourceSharingService.selectResourceSharingById(id));
     }
 
-    @ApiOperation(value = "editSave", notes = "资源共享平台修改保存")
+    @ApiOperation(value = "editSave", notes = "需 resource:upload 权限")
     @PostMapping("/edit")
-    public AjaxResult ResourceSharingeditSave(@RequestBody ResourceSharing resourceSharing) {
+    public AjaxResult ResourceSharingeditSave(@RequestBody ResourceSharing resourceSharing, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:upload")) {
+            return AjaxResult.error(403, "无权限编辑资源");
+        }
         return toAjax(resourceSharingService.updateResourceSharing(resourceSharing));
     }
     
-    @ApiOperation(value = "上传资源文件", notes = "上传资源文件")
+    @ApiOperation(value = "上传资源文件", notes = "需 resource:upload 权限")
     @PostMapping("/upload")
     public AjaxResult uploadResource(
             @RequestParam("file") MultipartFile file,
             @RequestParam("resourceName") String resourceName,
             @RequestParam("resourceType") String resourceType,
             @RequestParam(value = "resourceDesc", required = false) String resourceDesc,
-            @RequestParam("uploadUser") String uploadUser) {
+            @RequestParam("uploadUser") String uploadUser,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:upload")) {
+            return AjaxResult.error(403, "无权限上传资源");
+        }
         try {
             if (file.isEmpty()) {
                 return AjaxResult.error("文件不能为空");
@@ -207,9 +235,12 @@ public class ResourceSharingController extends BaseController {
         return base + fileExt;
     }
 
-    @ApiOperation(value = "获取资源下载文件名", notes = "用于前端下载时设置正确文件名")
+    @ApiOperation(value = "获取资源下载文件名", notes = "需 resource:download 权限")
     @GetMapping("/downloadFilename/{id}")
-    public AjaxResult getDownloadFilename(@PathVariable("id") Long id) {
+    public AjaxResult getDownloadFilename(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:download")) {
+            return AjaxResult.error(403, "无权限下载资源");
+        }
         try {
             ResourceSharing resource = resourceSharingService.selectResourceSharingById(id);
             if (resource == null || resource.getFilePath() == null) {
@@ -226,9 +257,12 @@ public class ResourceSharingController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "下载资源文件", notes = "下载资源文件")
+    @ApiOperation(value = "下载资源文件", notes = "需 resource:download 权限")
     @GetMapping("/download/{id}")
-    public ResponseEntity<Resource> downloadResource(@PathVariable("id") Long id) {
+    public ResponseEntity<Resource> downloadResource(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:download")) {
+            return ResponseEntity.status(403).build();
+        }
         try {
             ResourceSharing resource = resourceSharingService.selectResourceSharingById(id);
             if (resource == null || resource.getFilePath() == null) {
@@ -265,9 +299,12 @@ public class ResourceSharingController extends BaseController {
         }
     }
     
-    @ApiOperation(value = "增加下载次数", notes = "增加资源下载次数")
+    @ApiOperation(value = "增加下载次数", notes = "需 resource:download 权限")
     @PostMapping("/incrementDownload/{id}")
-    public AjaxResult incrementDownload(@PathVariable("id") Long id) {
+    public AjaxResult incrementDownload(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "resource:download")) {
+            return AjaxResult.error(403, "无权限下载资源");
+        }
         try {
             ResourceSharing resource = resourceSharingService.selectResourceSharingById(id);
             if (resource == null) {

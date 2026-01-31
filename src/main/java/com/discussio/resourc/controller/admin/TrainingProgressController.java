@@ -25,6 +25,7 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 import java.util.List;
 
@@ -58,11 +59,18 @@ public class TrainingProgressController extends BaseController {
     @Autowired
     private ITrainingContentBlockProgressService trainingContentBlockProgressService;
 
-    @ApiOperation(value = "开始培训（初始化进度）")
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "开始培训（初始化进度）", notes = "需 training:view 权限")
     @PostMapping("/start")
     public AjaxResult start(@RequestParam Long trainingId,
                             @RequestParam Long studentId,
-                            @RequestParam(required = false) String studentName) {
+                            @RequestParam(required = false) String studentName,
+                            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限学习培训");
+        }
         try {
             if (!trainingService.canStudentAccessTraining(trainingId, studentId)) {
                 return AjaxResult.error(403, "您不在该培训的指定班级中，无法学习");
@@ -96,16 +104,22 @@ public class TrainingProgressController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "获取培训总进度")
+    @ApiOperation(value = "获取培训总进度", notes = "需 training:view 权限")
     @GetMapping("/get")
-    public AjaxResult get(@RequestParam Long trainingId, @RequestParam Long studentId) {
+    public AjaxResult get(@RequestParam Long trainingId, @RequestParam Long studentId, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限查看进度");
+        }
         TrainingProgress p = trainingProgressService.selectByTrainingAndStudent(trainingId, studentId);
         return AjaxResult.success(p);
     }
 
-    @ApiOperation(value = "上报单个资料进度（并刷新总进度）")
+    @ApiOperation(value = "上报单个资料进度（并刷新总进度）", notes = "需 training:view 权限")
     @PostMapping("/reportMaterial")
-    public AjaxResult reportMaterial(@RequestBody TrainingMaterialProgress body) {
+    public AjaxResult reportMaterial(@RequestBody TrainingMaterialProgress body, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限操作");
+        }
         try {
             if (body.getTrainingId() == null || body.getMaterialId() == null || body.getStudentId() == null) {
                 return AjaxResult.error("trainingId/materialId/studentId 不能为空");
@@ -131,9 +145,12 @@ public class TrainingProgressController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "获取该培训的资料进度列表")
+    @ApiOperation(value = "获取该培训的资料进度列表", notes = "需 training:view 权限")
     @GetMapping("/materialList")
-    public AjaxResult materialList(@RequestParam Long trainingId, @RequestParam Long studentId) {
+    public AjaxResult materialList(@RequestParam Long trainingId, @RequestParam Long studentId, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限查看进度");
+        }
         List<TrainingMaterialProgress> list = trainingMaterialProgressService.selectList(
                 new QueryWrapper<TrainingMaterialProgress>()
                         .eq("training_id", trainingId)
@@ -142,9 +159,12 @@ public class TrainingProgressController extends BaseController {
         return AjaxResult.success(list);
     }
 
-    @ApiOperation(value = "上报内容块浏览进度（并刷新总进度）")
+    @ApiOperation(value = "上报内容块浏览进度（并刷新总进度）", notes = "需 training:view 权限")
     @PostMapping("/reportBlock")
-    public AjaxResult reportBlock(@RequestBody TrainingContentBlockProgress body) {
+    public AjaxResult reportBlock(@RequestBody TrainingContentBlockProgress body, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限操作");
+        }
         try {
             if (body.getTrainingId() == null || body.getBlockId() == null || body.getStudentId() == null) {
                 return AjaxResult.error("trainingId/blockId/studentId 不能为空");
@@ -271,14 +291,18 @@ public class TrainingProgressController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "进度列表（管理查看）")
+    @ApiOperation(value = "进度列表（管理查看）", notes = "需 training:progress 权限")
     @GetMapping("/list")
     public ResultTable list(@RequestParam(required = false) Integer page,
                             @RequestParam(required = false) Integer limit,
                             @RequestParam(required = false) Long trainingId,
                             @RequestParam(required = false) Long studentId,
                             @RequestParam(required = false) String status,
-                            @RequestParam(required = false) String searchText) {
+                            @RequestParam(required = false) String searchText,
+                            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:progress")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看学习进度", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<TrainingProgress> qw = new QueryWrapper<>();
         if (trainingId != null) qw.eq("training_id", trainingId);
         if (studentId != null) qw.eq("student_id", studentId);
@@ -296,9 +320,12 @@ public class TrainingProgressController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "进度统计（平均完成率等）")
+    @ApiOperation(value = "进度统计（平均完成率等）", notes = "需 training:progress 权限")
     @GetMapping("/statistics")
-    public AjaxResult statistics(@RequestParam(required = false) Long trainingId) {
+    public AjaxResult statistics(@RequestParam(required = false) Long trainingId, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:progress")) {
+            return AjaxResult.error(403, "无权限查看学习进度");
+        }
         try {
             QueryWrapper<TrainingProgress> qw = new QueryWrapper<>();
             if (trainingId != null) {
@@ -335,9 +362,12 @@ public class TrainingProgressController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "进度详情（包含培训名称、学员信息）")
+    @ApiOperation(value = "进度详情（包含培训名称、学员信息）", notes = "需 training:progress 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult detail(@PathVariable("id") Long id) {
+    public AjaxResult detail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:progress")) {
+            return AjaxResult.error(403, "无权限查看学习进度");
+        }
         try {
             TrainingProgress progress = trainingProgressService.getById(id);
             if (progress == null) {

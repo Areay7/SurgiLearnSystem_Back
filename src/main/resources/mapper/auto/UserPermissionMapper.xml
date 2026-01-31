@@ -5,9 +5,11 @@
     <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.UserPermission">
         <id column="id" jdbcType="BIGINT" property="id" />
         <result column="user_id" jdbcType="BIGINT" property="userId" />
+        <result column="user_phone" jdbcType="VARCHAR" property="userPhone" />
         <result column="permission_code" jdbcType="VARCHAR" property="permissionCode" />
         <result column="permission_name" jdbcType="VARCHAR" property="permissionName" />
         <result column="is_active" jdbcType="INTEGER" property="isActive" />
+        <result column="grant_type" jdbcType="VARCHAR" property="grantType" />
     </resultMap>
 
     <select id="selectUserPermissionById" parameterType="java.lang.Long" resultMap="BaseResultMap">

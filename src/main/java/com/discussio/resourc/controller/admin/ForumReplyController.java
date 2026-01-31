@@ -15,6 +15,7 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 import java.util.List;
 
@@ -32,13 +33,20 @@ public class ForumReplyController extends BaseController {
     
     @Autowired
     private IDiscussionForumService discussionForumService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
     
-    @ApiOperation(value = "获取话题的回复列表", notes = "获取话题的回复列表")
+    @ApiOperation(value = "获取话题的回复列表", notes = "需 forum:view 权限")
     @GetMapping("/list")
     public ResultTable getReplyList(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = true) Long forumId) {
+            @RequestParam(required = true) Long forumId,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看回复", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<ForumReply> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("forum_id", forumId);
         queryWrapper.eq("is_deleted", 0);
@@ -51,9 +59,12 @@ public class ForumReplyController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
     
-    @ApiOperation(value = "新增回复", notes = "新增回复")
+    @ApiOperation(value = "新增回复", notes = "需 forum:post 权限")
     @PostMapping("/add")
-    public AjaxResult addReply(@RequestBody ForumReply forumReply) {
+    public AjaxResult addReply(@RequestBody ForumReply forumReply, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:post")) {
+            return AjaxResult.error(403, "无权限回复");
+        }
         // 设置回复时间
         if (forumReply.getReplyTime() == null) {
             forumReply.setReplyTime(new Date());
@@ -68,27 +79,39 @@ public class ForumReplyController extends BaseController {
         return toAjax(result);
     }
     
-    @ApiOperation(value = "删除回复", notes = "删除回复")
+    @ApiOperation(value = "删除回复", notes = "需 forum:manage 权限")
     @DeleteMapping("/remove")
-    public AjaxResult removeReply(@RequestParam String ids) {
+    public AjaxResult removeReply(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:manage")) {
+            return AjaxResult.error(403, "无权限删除回复");
+        }
         return toAjax(forumReplyService.deleteForumReplyByIds(ids));
     }
     
-    @ApiOperation(value = "获取回复详情", notes = "获取回复详情")
+    @ApiOperation(value = "获取回复详情", notes = "需 forum:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult getReplyDetail(@PathVariable("id") Long id) {
+    public AjaxResult getReplyDetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:view")) {
+            return AjaxResult.error(403, "无权限查看回复");
+        }
         return AjaxResult.success(forumReplyService.selectForumReplyById(id));
     }
     
-    @ApiOperation(value = "更新回复", notes = "更新回复")
+    @ApiOperation(value = "更新回复", notes = "需 forum:post 权限")
     @PostMapping("/edit")
-    public AjaxResult updateReply(@RequestBody ForumReply forumReply) {
+    public AjaxResult updateReply(@RequestBody ForumReply forumReply, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:post")) {
+            return AjaxResult.error(403, "无权限编辑回复");
+        }
         return toAjax(forumReplyService.updateForumReply(forumReply));
     }
     
-    @ApiOperation(value = "点赞回复", notes = "点赞回复")
+    @ApiOperation(value = "点赞回复", notes = "需 forum:post 权限")
     @PostMapping("/like/{id}")
-    public AjaxResult likeReply(@PathVariable("id") Long id) {
+    public AjaxResult likeReply(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:post")) {
+            return AjaxResult.error(403, "无权限操作");
+        }
         ForumReply reply = forumReplyService.selectForumReplyById(id);
         if (reply == null) {
             return AjaxResult.error("回复不存在");

@@ -41,7 +41,10 @@ public class ExamController extends BaseController {
     @Autowired(required = false)
     private IStudentsService studentsService;
 
-    @ApiOperation(value = "考试列表", notes = "获取考试列表；学员仅看到其所在班级的考试")
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "考试列表", notes = "需 exam:view 权限；学员仅看到其所在班级的考试")
     @GetMapping("/list")
     public ResultTable examList(
             @RequestParam(required = false) Integer page,
@@ -51,6 +54,9 @@ public class ExamController extends BaseController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String examDate,
             HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "exam:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看考试", 0, java.util.Collections.emptyList());
+        }
         ExamUserRole role = resolveExamUserRole(request);
         Date examDateParsed = null;
         if (examDate != null && !examDate.trim().isEmpty()) {
@@ -86,7 +92,9 @@ public class ExamController extends BaseController {
 
     @ApiOperation(value = "新增考试", notes = "新增考试")
     @PostMapping("/add")
-    public AjaxResult examAdd(@RequestBody Exam exam) {
+    public AjaxResult examAdd(@RequestBody Exam exam, HttpServletRequest request) {
+        boolean canCreate = permissionHelper != null ? permissionHelper.hasPermission(request, "exam:create") : (resolveExamUserRole(request).isAdmin || resolveExamUserRole(request).isInstructor);
+        if (!canCreate) return AjaxResult.error(403, "无权限操作（需要考试创建权限）");
         try {
             int n = examService.insertExam(exam);
             if (n > 0 && exam.getId() != null && exam.getClassIds() != null) {
@@ -100,7 +108,9 @@ public class ExamController extends BaseController {
 
     @ApiOperation(value = "删除考试", notes = "删除考试")
     @DeleteMapping("/remove")
-    public AjaxResult examRemove(@RequestParam String ids) {
+    public AjaxResult examRemove(@RequestParam String ids, HttpServletRequest request) {
+        boolean canDelete = permissionHelper != null ? permissionHelper.hasPermission(request, "exam:delete") : (resolveExamUserRole(request).isAdmin || resolveExamUserRole(request).isInstructor);
+        if (!canDelete) return AjaxResult.error(403, "无权限操作（需要考试删除权限）");
         try {
             return toAjax(examService.deleteExamByIds(ids));
         } catch (Exception e) {
@@ -108,10 +118,13 @@ public class ExamController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "考试详情", notes = "获取考试详情")
+    @ApiOperation(value = "考试详情", notes = "需 exam:view 权限")
     @GetMapping("/detail/{id}")
     public AjaxResult examDetail(@PathVariable("id") Long id, HttpServletRequest request) {
         try {
+            if (permissionHelper != null && !permissionHelper.hasPermission(request, "exam:view")) {
+                return AjaxResult.error(403, "无权限查看考试");
+            }
             Exam e = examService.selectExamById(id);
             if (e == null) return AjaxResult.error("考试不存在");
             e.setClassIds(examService.getExamClassIds(id));
@@ -134,7 +147,9 @@ public class ExamController extends BaseController {
 
     @ApiOperation(value = "修改考试", notes = "修改考试")
     @PostMapping("/edit")
-    public AjaxResult examEdit(@RequestBody Exam exam) {
+    public AjaxResult examEdit(@RequestBody Exam exam, HttpServletRequest request) {
+        boolean canEdit = permissionHelper != null ? permissionHelper.hasPermission(request, "exam:edit") : (resolveExamUserRole(request).isAdmin || resolveExamUserRole(request).isInstructor);
+        if (!canEdit) return AjaxResult.error(403, "无权限操作（需要考试编辑权限）");
         try {
             int n = examService.updateExam(exam);
             if (n > 0 && exam.getId() != null) {

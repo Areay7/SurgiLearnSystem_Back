@@ -21,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -41,7 +42,10 @@ public class QuestionBankController extends BaseController {
     @Autowired
     private IQuestionBankService questionBankService;
 
-    @ApiOperation(value = "题库列表", notes = "获取题库列表")
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "题库列表", notes = "需 question:view 权限")
     @GetMapping("/list")
     public ResultTable questionBankList(
             @RequestParam(required = false) Integer page,
@@ -49,7 +53,11 @@ public class QuestionBankController extends BaseController {
             @RequestParam(required = false) String searchText,
             @RequestParam(required = false) String questionType,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String difficulty) {
+            @RequestParam(required = false) String difficulty,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看题库", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<QuestionBank> queryWrapper = new QueryWrapper<>();
         
         // 题目内容搜索
@@ -86,9 +94,12 @@ public class QuestionBankController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "新增题目", notes = "新增题目")
+    @ApiOperation(value = "新增题目", notes = "需 question:create 权限")
     @PostMapping("/add")
-    public AjaxResult questionBankAdd(@RequestBody QuestionBank questionBank) {
+    public AjaxResult questionBankAdd(@RequestBody QuestionBank questionBank, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:create")) {
+            return AjaxResult.error(403, "无权限新增题目");
+        }
         try {
             return toAjax(questionBankService.insertQuestionBank(questionBank));
         } catch (Exception e) {
@@ -96,9 +107,12 @@ public class QuestionBankController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "删除题目", notes = "删除题目")
+    @ApiOperation(value = "删除题目", notes = "需 question:delete 权限")
     @DeleteMapping("/remove")
-    public AjaxResult questionBankRemove(@RequestParam String ids) {
+    public AjaxResult questionBankRemove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:delete")) {
+            return AjaxResult.error(403, "无权限删除题目");
+        }
         try {
             return toAjax(questionBankService.deleteQuestionBankByIds(ids));
         } catch (Exception e) {
@@ -106,9 +120,12 @@ public class QuestionBankController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "题目详情", notes = "获取题目详情")
+    @ApiOperation(value = "题目详情", notes = "需 question:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult questionBankDetail(@PathVariable("id") Long id) {
+    public AjaxResult questionBankDetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:view")) {
+            return AjaxResult.error(403, "无权限查看题目");
+        }
         try {
             return AjaxResult.success(questionBankService.selectQuestionBankById(id));
         } catch (Exception e) {
@@ -116,9 +133,12 @@ public class QuestionBankController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "修改题目", notes = "修改题目")
+    @ApiOperation(value = "修改题目", notes = "需 question:edit 权限")
     @PostMapping("/edit")
-    public AjaxResult questionBankEdit(@RequestBody QuestionBank questionBank) {
+    public AjaxResult questionBankEdit(@RequestBody QuestionBank questionBank, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:edit")) {
+            return AjaxResult.error(403, "无权限编辑题目");
+        }
         try {
             return toAjax(questionBankService.updateQuestionBank(questionBank));
         } catch (Exception e) {
@@ -126,9 +146,13 @@ public class QuestionBankController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "导入题库模板下载", notes = "下载Excel导入模板")
+    @ApiOperation(value = "导入题库模板下载", notes = "需 question:create 权限")
     @GetMapping("/template")
-    public void downloadTemplate(HttpServletResponse response) {
+    public void downloadTemplate(HttpServletResponse response, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:create")) {
+            try { response.sendError(403, "无权限"); } catch (Exception ignored) {}
+            return;
+        }
         Workbook workbook = new XSSFWorkbook();
         try {
             Sheet sheet = workbook.createSheet("题库导入模板");
@@ -206,9 +230,12 @@ public class QuestionBankController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "批量导入题目", notes = "上传Excel批量导入题目")
+    @ApiOperation(value = "批量导入题目", notes = "需 question:create 权限")
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public AjaxResult importQuestions(@RequestParam("file") MultipartFile file) {
+    public AjaxResult importQuestions(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:create")) {
+            return AjaxResult.error(403, "无权限导入题目");
+        }
         if (file == null || file.isEmpty()) {
             return AjaxResult.error("请选择要上传的Excel文件");
         }

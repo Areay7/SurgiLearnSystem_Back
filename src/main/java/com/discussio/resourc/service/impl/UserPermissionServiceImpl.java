@@ -42,8 +42,8 @@ public class UserPermissionServiceImpl extends ServiceImpl<UserPermissionMapper,
 
     @Override
     public int insertUserPermission(UserPermission userPermission) {
-        if (userPermission.getUserId() == null) {
-            throw new RuntimeException("用户权限管理.用户ID不能为空！");
+        if (userPermission.getUserId() == null && (userPermission.getUserPhone() == null || userPermission.getUserPhone().trim().isEmpty())) {
+            throw new RuntimeException("用户权限管理.用户ID或手机号不能为空！");
         }
         if (StringUtils.isBlank(userPermission.getPermissionCode())) {
             throw new RuntimeException("用户权限管理.权限代码不能为空！");
@@ -59,6 +59,27 @@ public class UserPermissionServiceImpl extends ServiceImpl<UserPermissionMapper,
         }
         if (userPermission.getIsActive() == null) {
             userPermission.setIsActive(1);
+        }
+        if (userPermission.getGrantType() == null || userPermission.getGrantType().trim().isEmpty()) {
+            userPermission.setGrantType("grant");
+        }
+        // 防重复：同一用户+权限+类型已存在则提示
+        String phone = userPermission.getUserPhone() != null ? userPermission.getUserPhone().trim() : null;
+        Long uid = userPermission.getUserId();
+        if (phone != null || uid != null) {
+            QueryWrapper<UserPermission> qw = new QueryWrapper<>();
+            qw.eq("permission_code", userPermission.getPermissionCode());
+            qw.eq("grant_type", userPermission.getGrantType());
+            if (uid != null && phone != null) {
+                qw.and(w -> w.eq("user_id", uid).or().eq("user_phone", phone));
+            } else if (uid != null) {
+                qw.eq("user_id", uid);
+            } else {
+                qw.eq("user_phone", phone);
+            }
+            if (this.baseMapper.selectCount(qw) > 0) {
+                throw new RuntimeException("该用户已存在相同的权限配置（" + userPermission.getPermissionCode() + "），请勿重复添加");
+            }
         }
         return this.baseMapper.insert(userPermission);
     }
@@ -68,8 +89,8 @@ public class UserPermissionServiceImpl extends ServiceImpl<UserPermissionMapper,
         if (userPermission.getId() == null) {
             throw new RuntimeException("用户权限管理.id不能为空！");
         }
-        if (userPermission.getUserId() == null) {
-            throw new RuntimeException("用户权限管理.用户ID不能为空！");
+        if (userPermission.getUserId() == null && (userPermission.getUserPhone() == null || userPermission.getUserPhone().trim().isEmpty())) {
+            throw new RuntimeException("用户权限管理.用户ID或手机号不能为空！");
         }
         if (StringUtils.isBlank(userPermission.getPermissionCode())) {
             throw new RuntimeException("用户权限管理.权限代码不能为空！");
@@ -85,6 +106,9 @@ public class UserPermissionServiceImpl extends ServiceImpl<UserPermissionMapper,
         }
         if (userPermission.getIsActive() == null) {
             userPermission.setIsActive(1);
+        }
+        if (userPermission.getGrantType() == null || userPermission.getGrantType().trim().isEmpty()) {
+            userPermission.setGrantType("grant");
         }
         return this.baseMapper.updateById(userPermission);
     }

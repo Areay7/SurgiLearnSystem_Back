@@ -14,6 +14,7 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -28,7 +29,10 @@ public class StudentsController extends BaseController {
     @Autowired
     private IStudentsService studentsService;
 
-    @ApiOperation(value = "学员记录管理列表", notes = "学员记录管理列表")
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "学员记录管理列表", notes = "需 user:view 权限")
     @GetMapping("/list")
     public ResultTable Studentslist(
             @RequestParam(required = false) Integer page,
@@ -38,7 +42,11 @@ public class StudentsController extends BaseController {
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) String employeeId,
             @RequestParam(required = false) Integer userType,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "user:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看用户", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<Students> queryWrapper = new QueryWrapper<>();
         
         // 学员姓名搜索
@@ -87,27 +95,39 @@ public class StudentsController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "学员记录管理新增", notes = "学员记录管理新增")
+    @ApiOperation(value = "学员记录管理新增", notes = "需 user:edit 权限")
     @PostMapping("/add")
-    public AjaxResult Studentsadd(@RequestBody Students students) {
+    public AjaxResult Studentsadd(@RequestBody Students students, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "user:edit")) {
+            return AjaxResult.error(403, "无权限新增用户");
+        }
         return toAjax(studentsService.insertStudents(students));
     }
 
-    @ApiOperation(value = "学员记录管理删除", notes = "学员记录管理删除")
+    @ApiOperation(value = "学员记录管理删除", notes = "需 user:edit 权限")
     @DeleteMapping("/remove")
-    public AjaxResult Studentsremove(@RequestParam String ids) {
+    public AjaxResult Studentsremove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "user:edit")) {
+            return AjaxResult.error(403, "无权限删除用户");
+        }
         return toAjax(studentsService.deleteStudentsByIds(ids));
     }
 
-    @ApiOperation(value = "学员记录管理详情", notes = "获取学员记录管理详情")
+    @ApiOperation(value = "学员记录管理详情", notes = "需 user:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult Studentsdetail(@PathVariable("id") Long id) {
+    public AjaxResult Studentsdetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "user:view")) {
+            return AjaxResult.error(403, "无权限查看用户");
+        }
         return AjaxResult.success(studentsService.selectStudentsById(id));
     }
 
-    @ApiOperation(value = "学员记录管理修改保存", notes = "学员记录管理修改保存")
+    @ApiOperation(value = "学员记录管理修改保存", notes = "需 user:edit 权限")
     @PostMapping("/edit")
-    public AjaxResult StudentseditSave(@RequestBody Students students) {
+    public AjaxResult StudentseditSave(@RequestBody Students students, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "user:edit")) {
+            return AjaxResult.error(403, "无权限编辑用户");
+        }
         return toAjax(studentsService.updateStudents(students));
     }
 }

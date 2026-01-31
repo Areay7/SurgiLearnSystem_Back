@@ -38,13 +38,19 @@ public class ScheduleController extends BaseController {
     @Autowired(required = false)
     private IStudentsService studentsService;
 
-    @ApiOperation(value = "课程安排列表", notes = "所有人可查看")
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "课程安排列表", notes = "需 schedule:view 权限")
     @GetMapping("/list")
     public ResultTable list(@RequestParam(required = false) Integer page,
                             @RequestParam(required = false) Integer limit,
                             @RequestParam(required = false) String searchText,
                             @RequestParam(required = false) String status,
-                            @RequestParam(required = false) String instructorName) {
+                            @RequestParam(required = false) String instructorName,
+                            HttpServletRequest request) {
+        boolean canView = permissionHelper != null ? permissionHelper.hasPermission(request, "schedule:view") : true;
+        if (!canView) return new ResultTable(403, "无权限查看课程安排", 0, java.util.Collections.emptyList());
         // 查询前顺手刷新一次状态，保证页面实时性（定时任务也会刷新）
         try { scheduleService.refreshStatusesNow(); } catch (Exception ignore) {}
         QueryWrapper<Schedule> qw = new QueryWrapper<>();
@@ -66,34 +72,31 @@ public class ScheduleController extends BaseController {
         return pageTable(p.getList(), p.getTotal());
     }
 
-    @ApiOperation(value = "新增课程安排", notes = "仅管理员/讲师可新增")
+    @ApiOperation(value = "新增课程安排", notes = "需 schedule:create 权限")
     @PostMapping("/add")
     public AjaxResult add(@RequestBody Schedule schedule, HttpServletRequest request) {
-        if (!canManage(request)) {
-            return AjaxResult.error(403, "无权限操作（仅管理员/讲师可新建课程安排）");
-        }
+        boolean canCreate = permissionHelper != null ? permissionHelper.hasPermission(request, "schedule:create") : canManageLegacy(request);
+        if (!canCreate) return AjaxResult.error(403, "无权限操作（需要课程安排新建权限）");
         return toAjax(scheduleService.insertSchedule(schedule));
     }
 
-    @ApiOperation(value = "编辑课程安排", notes = "仅管理员/讲师可编辑")
+    @ApiOperation(value = "编辑课程安排", notes = "需 schedule:edit 权限")
     @PostMapping("/edit")
     public AjaxResult edit(@RequestBody Schedule schedule, HttpServletRequest request) {
-        if (!canManage(request)) {
-            return AjaxResult.error(403, "无权限操作（仅管理员/讲师可编辑课程安排）");
-        }
+        boolean canEdit = permissionHelper != null ? permissionHelper.hasPermission(request, "schedule:edit") : canManageLegacy(request);
+        if (!canEdit) return AjaxResult.error(403, "无权限操作（需要课程安排编辑权限）");
         return toAjax(scheduleService.updateSchedule(schedule));
     }
 
-    @ApiOperation(value = "删除课程安排", notes = "仅管理员/讲师可删除")
+    @ApiOperation(value = "删除课程安排", notes = "需 schedule:delete 权限")
     @DeleteMapping("/remove")
     public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
-        if (!canManage(request)) {
-            return AjaxResult.error(403, "无权限操作（仅管理员/讲师可删除课程安排）");
-        }
+        boolean canDelete = permissionHelper != null ? permissionHelper.hasPermission(request, "schedule:delete") : canManageLegacy(request);
+        if (!canDelete) return AjaxResult.error(403, "无权限操作（需要课程安排删除权限）");
         return toAjax(scheduleService.deleteScheduleByIds(ids));
     }
 
-    private boolean canManage(HttpServletRequest request) {
+    private boolean canManageLegacy(HttpServletRequest request) {
         try {
             String auth = request.getHeader("Authorization");
             if (auth == null || auth.trim().isEmpty()) return false;
@@ -102,13 +105,10 @@ public class ScheduleController extends BaseController {
             if (username == null || username.trim().isEmpty()) return false;
 
             LoginDiscussionForum user = loginService.getUserInfo(username);
-            // 0-普通用户 1-管理员
             if (user != null && user.getUserType() != null && user.getUserType() == 1) return true;
-
-            // students.user_type: 1=学员 2=讲师 3=管理员
             if (studentsService != null) {
                 Students s = studentsService.selectStudentsByPhone(username);
-                return s != null && s.getUserType() != null && s.getUserType() == 2;
+                return s != null && s.getUserType() != null && (s.getUserType() == 2 || s.getUserType() == 3);
             }
             return false;
         } catch (Exception e) {

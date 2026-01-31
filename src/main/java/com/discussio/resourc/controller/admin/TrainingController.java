@@ -52,7 +52,10 @@ public class TrainingController extends BaseController {
     @Autowired(required = false)
     private IStudentsService studentsService;
 
-    @ApiOperation(value = "培训列表", notes = "分页、搜索、类型/状态过滤；学员仅看到其所在班级的培训")
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "培训列表", notes = "需 training:view 权限；学员仅看到其所在班级的培训")
     @GetMapping("/list")
     public ResultTable list(@RequestParam(required = false) Integer page,
                             @RequestParam(required = false) Integer limit,
@@ -60,6 +63,9 @@ public class TrainingController extends BaseController {
                             @RequestParam(required = false) String trainingType,
                             @RequestParam(required = false) String status,
                             HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看培训", 0, java.util.Collections.emptyList());
+        }
         UserRole role = resolveUserRole(request);
         PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 10);
         List<Training> list;
@@ -84,9 +90,12 @@ public class TrainingController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "培训详情")
+    @ApiOperation(value = "培训详情", notes = "需 training:view 权限")
     @GetMapping("/detail/{id}")
     public AjaxResult detail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限查看培训");
+        }
         Training t = trainingService.selectTrainingById(id);
         if (t == null) return AjaxResult.error("培训不存在");
         List<Long> classIds = trainingService.getTrainingClassIds(id);
@@ -109,10 +118,11 @@ public class TrainingController extends BaseController {
     @PostMapping("/add")
     public AjaxResult add(@RequestBody Training training, HttpServletRequest request) {
         try {
-            UserRole role = resolveUserRole(request);
-            if (!role.isAdmin && !role.isInstructor) {
-                return AjaxResult.error(403, "无权限操作（仅管理员/讲师可创建培训）");
+            boolean canCreate = permissionHelper != null ? permissionHelper.hasPermission(request, "training:create") : (resolveUserRole(request).isAdmin || resolveUserRole(request).isInstructor);
+            if (!canCreate) {
+                return AjaxResult.error(403, "无权限操作（需要培训创建权限）");
             }
+            UserRole role = resolveUserRole(request);
 
             // 讲师创建时，强制讲师为自己
             if (role.isInstructor && role.student != null) {
@@ -143,10 +153,11 @@ public class TrainingController extends BaseController {
     @PostMapping("/edit")
     public AjaxResult edit(@RequestBody Training training, HttpServletRequest request) {
         try {
-            UserRole role = resolveUserRole(request);
-            if (!role.isAdmin && !role.isInstructor) {
-                return AjaxResult.error(403, "无权限操作（仅管理员/讲师可编辑培训）");
+            boolean canEdit = permissionHelper != null ? permissionHelper.hasPermission(request, "training:edit") : (resolveUserRole(request).isAdmin || resolveUserRole(request).isInstructor);
+            if (!canEdit) {
+                return AjaxResult.error(403, "无权限操作（需要培训编辑权限）");
             }
+            UserRole role = resolveUserRole(request);
             int n = trainingService.updateTraining(training);
             if (n > 0 && training.getId() != null) {
                 trainingService.setTrainingClassIds(training.getId(), training.getClassIds());
@@ -160,23 +171,29 @@ public class TrainingController extends BaseController {
     @ApiOperation(value = "删除培训")
     @DeleteMapping("/remove")
     public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
-        UserRole role = resolveUserRole(request);
-        if (!role.isAdmin && !role.isInstructor) {
-            return AjaxResult.error(403, "无权限操作（仅管理员/讲师可删除培训）");
+        boolean canDelete = permissionHelper != null ? permissionHelper.hasPermission(request, "training:delete") : (resolveUserRole(request).isAdmin || resolveUserRole(request).isInstructor);
+        if (!canDelete) {
+            return AjaxResult.error(403, "无权限操作（需要培训删除权限）");
         }
         return toAjax(trainingService.deleteTrainingByIds(ids));
     }
 
-    @ApiOperation(value = "获取培训关联资料")
+    @ApiOperation(value = "获取培训关联资料", notes = "需 training:view 权限")
     @GetMapping("/materials/{trainingId}")
-    public AjaxResult listMaterials(@PathVariable("trainingId") Long trainingId) {
+    public AjaxResult listMaterials(@PathVariable("trainingId") Long trainingId, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限查看培训资料");
+        }
         return AjaxResult.success(trainingMaterialService.listByTrainingId(trainingId));
     }
 
     @ApiOperation(value = "设置培训关联资料", notes = "替换该培训的资料列表")
     @PostMapping("/materials/{trainingId}")
     public AjaxResult replaceMaterials(@PathVariable("trainingId") Long trainingId,
-                                       @RequestBody List<TrainingMaterial> items) {
+                                       @RequestBody List<TrainingMaterial> items,
+                                       HttpServletRequest request) {
+        boolean canEdit = permissionHelper != null ? permissionHelper.hasPermission(request, "training:materials") : (resolveUserRole(request).isAdmin || resolveUserRole(request).isInstructor);
+        if (!canEdit) return AjaxResult.error(403, "无权限操作（需要培训资料编辑权限）");
         try {
             int n = trainingMaterialService.replaceTrainingMaterials(trainingId, items);
             return AjaxResult.success("保存成功", n);
@@ -185,16 +202,22 @@ public class TrainingController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "获取培训资料白板内容块", notes = "按 sort_order 从上往下")
+    @ApiOperation(value = "获取培训资料白板内容块", notes = "需 training:view 权限")
     @GetMapping("/content-blocks/{trainingId}")
-    public AjaxResult listContentBlocks(@PathVariable("trainingId") Long trainingId) {
+    public AjaxResult listContentBlocks(@PathVariable("trainingId") Long trainingId, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
+            return AjaxResult.error(403, "无权限查看培训内容");
+        }
         return AjaxResult.success(trainingContentBlockService.listByTrainingId(trainingId));
     }
 
     @ApiOperation(value = "保存培训资料白板", notes = "替换该培训的所有内容块（文字/图片/视频/PDF/文件）")
     @PostMapping("/content-blocks/{trainingId}")
     public AjaxResult saveContentBlocks(@PathVariable("trainingId") Long trainingId,
-                                        @RequestBody List<TrainingContentBlock> items) {
+                                        @RequestBody List<TrainingContentBlock> items,
+                                        HttpServletRequest request) {
+        boolean canEdit = permissionHelper != null ? permissionHelper.hasPermission(request, "training:materials") : (resolveUserRole(request).isAdmin || resolveUserRole(request).isInstructor);
+        if (!canEdit) return AjaxResult.error(403, "无权限操作（需要培训资料编辑权限）");
         try {
             int n = trainingContentBlockService.replaceBlocks(trainingId, items);
             return AjaxResult.success("保存成功", n);

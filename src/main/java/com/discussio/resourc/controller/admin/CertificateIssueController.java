@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,11 +45,17 @@ public class CertificateIssueController extends BaseController {
     @Value("${file.upload-path:./uploads}")
     private String uploadRoot;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
     private static final String[] STAMP_ALLOWED_EXT = new String[]{".png", ".jpg", ".jpeg", ".webp"};
 
-    @ApiOperation(value = "证书颁发功能列表", notes = "证书颁发功能列表")
+    @ApiOperation(value = "证书颁发功能列表", notes = "需 certificate:issue 权限")
     @GetMapping("/list")
-    public ResultTable CertificateIssuelist(Tablepar tablepar) {
+    public ResultTable CertificateIssuelist(Tablepar tablepar, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:issue")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看证书列表", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<CertificateIssue> queryWrapper = new QueryWrapper<>();
         if (tablepar != null && tablepar.getSearchText() != null && !tablepar.getSearchText().isEmpty()) {
             queryWrapper.like("holder_name", tablepar.getSearchText());
@@ -62,11 +69,15 @@ public class CertificateIssueController extends BaseController {
         return pageTable(page.getList(), page.getTotal());
     }
 
-    @ApiOperation(value = "我的证书列表", notes = "按 holder_id 查询当前用户证书（学员/讲师端使用）")
+    @ApiOperation(value = "我的证书列表", notes = "需 certificate:view 权限")
     @GetMapping("/myList")
     public ResultTable myList(@RequestParam String holderId,
                               @RequestParam(required = false) Integer page,
-                              @RequestParam(required = false) Integer limit) {
+                              @RequestParam(required = false) Integer limit,
+                              HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看证书", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<CertificateIssue> qw = new QueryWrapper<>();
         qw.eq("holder_id", holderId);
         qw.orderByDesc("issue_date").orderByDesc("id");
@@ -96,33 +107,48 @@ public class CertificateIssueController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "证书颁发功能新增", notes = "证书颁发功能新增")
+    @ApiOperation(value = "证书颁发功能新增", notes = "需 certificate:issue 权限")
     @PostMapping("/add")
-    public AjaxResult CertificateIssueadd(@RequestBody CertificateIssue certificateIssue) {
+    public AjaxResult CertificateIssueadd(@RequestBody CertificateIssue certificateIssue, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:issue")) {
+            return AjaxResult.error(403, "无权限颁发证书");
+        }
         return toAjax(certificateIssueService.insertCertificateIssue(certificateIssue));
     }
 
-    @ApiOperation(value = "证书颁发功能删除", notes = "证书颁发功能删除")
+    @ApiOperation(value = "证书颁发功能删除", notes = "需 certificate:issue 权限")
     @DeleteMapping("/remove")
-    public AjaxResult CertificateIssueremove(@RequestParam String ids) {
+    public AjaxResult CertificateIssueremove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:issue")) {
+            return AjaxResult.error(403, "无权限删除证书");
+        }
         return toAjax(certificateIssueService.deleteCertificateIssueByIds(ids));
     }
 
-    @ApiOperation(value = "证书颁发功能详情", notes = "获取证书颁发功能详情")
+    @ApiOperation(value = "证书颁发功能详情", notes = "需 certificate:view 或 certificate:issue 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult CertificateIssuedetail(@PathVariable("id") Long id) {
+    public AjaxResult CertificateIssuedetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasAnyPermission(request, "certificate:view", "certificate:issue")) {
+            return AjaxResult.error(403, "无权限查看证书");
+        }
         return AjaxResult.success(certificateIssueService.selectCertificateIssueById(id));
     }
 
-    @ApiOperation(value = "证书颁发功能修改保存", notes = "证书颁发功能修改保存")
+    @ApiOperation(value = "证书颁发功能修改保存", notes = "需 certificate:issue 权限")
     @PostMapping("/edit")
-    public AjaxResult CertificateIssueeditSave(@RequestBody CertificateIssue certificateIssue) {
+    public AjaxResult CertificateIssueeditSave(@RequestBody CertificateIssue certificateIssue, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:issue")) {
+            return AjaxResult.error(403, "无权限编辑证书");
+        }
         return toAjax(certificateIssueService.updateCertificateIssue(certificateIssue));
     }
 
-    @ApiOperation(value = "上传证书盖章图片", notes = "上传盖章图片（png/jpg/webp），返回 stampKey 供预览/保存")
+    @ApiOperation(value = "上传证书盖章图片", notes = "需 certificate:issue 权限")
     @PostMapping(value = "/uploadStamp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public AjaxResult uploadStamp(@RequestParam("file") MultipartFile file) {
+    public AjaxResult uploadStamp(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:issue")) {
+            return AjaxResult.error(403, "无权限操作");
+        }
         try {
             if (file == null || file.isEmpty()) return AjaxResult.error("文件不能为空");
             String name = file.getOriginalFilename();

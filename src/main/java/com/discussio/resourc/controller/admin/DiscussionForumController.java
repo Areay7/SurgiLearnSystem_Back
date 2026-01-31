@@ -14,6 +14,7 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -30,8 +31,10 @@ public class DiscussionForumController extends BaseController {
     @Autowired
     private IDiscussionForumService discussionForumService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
 
-    @ApiOperation(value = "讨论论坛模块列表", notes = "讨论论坛模块列表")
+    @ApiOperation(value = "讨论论坛模块列表", notes = "需 forum:view 权限")
     @GetMapping("/list")
     public ResultTable DiscussionForumlist(
             @RequestParam(required = false) Integer page,
@@ -40,7 +43,11 @@ public class DiscussionForumController extends BaseController {
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) String forumTitle,
             @RequestParam(required = false) String posterId,
-            @RequestParam(required = false) String postTime) {
+            @RequestParam(required = false) String postTime,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看论坛", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<DiscussionForum> queryWrapper = new QueryWrapper<>();
         
         // 讨论标题搜索
@@ -83,9 +90,12 @@ public class DiscussionForumController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "获取分类统计", notes = "获取讨论论坛分类统计")
+    @ApiOperation(value = "获取分类统计", notes = "需 forum:view 权限")
     @GetMapping("/categoryStats")
-    public AjaxResult getCategoryStats() {
+    public AjaxResult getCategoryStats(HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:view")) {
+            return AjaxResult.error(403, "无权限查看论坛");
+        }
         try {
             List<DiscussionForum> allList = discussionForumService.list();
             // 统计各分类数量
@@ -113,33 +123,48 @@ public class DiscussionForumController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "讨论论坛模块新增", notes = "讨论论坛模块新增")
+    @ApiOperation(value = "讨论论坛模块新增", notes = "需 forum:post 权限")
     @PostMapping("/add")
-    public AjaxResult DiscussionForumadd(@RequestBody DiscussionForum discussionForum) {
+    public AjaxResult DiscussionForumadd(@RequestBody DiscussionForum discussionForum, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:post")) {
+            return AjaxResult.error(403, "无权限发帖");
+        }
         return toAjax(discussionForumService.insertDiscussionForum(discussionForum));
     }
 
-    @ApiOperation(value = "讨论论坛模块删除", notes = "讨论论坛模块删除")
+    @ApiOperation(value = "讨论论坛模块删除", notes = "需 forum:manage 权限")
     @DeleteMapping("/remove")
-    public AjaxResult DiscussionForumremove(@RequestParam String ids) {
+    public AjaxResult DiscussionForumremove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:manage")) {
+            return AjaxResult.error(403, "无权限删除帖子");
+        }
         return toAjax(discussionForumService.deleteDiscussionForumByIds(ids));
     }
 
-    @ApiOperation(value = "讨论论坛模块详情", notes = "获取讨论论坛模块详情")
+    @ApiOperation(value = "讨论论坛模块详情", notes = "需 forum:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult DiscussionForumdetail(@PathVariable("id") Long id) {
+    public AjaxResult DiscussionForumdetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:view")) {
+            return AjaxResult.error(403, "无权限查看帖子");
+        }
         return AjaxResult.success(discussionForumService.selectDiscussionForumById(id));
     }
 
-    @ApiOperation(value = "editSave", notes = "讨论论坛模块修改保存")
+    @ApiOperation(value = "editSave", notes = "需 forum:post 或 forum:manage 权限")
     @PostMapping("/edit")
-    public AjaxResult DiscussionForumeditSave(@RequestBody DiscussionForum discussionForum) {
+    public AjaxResult DiscussionForumeditSave(@RequestBody DiscussionForum discussionForum, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasAnyPermission(request, "forum:post", "forum:manage")) {
+            return AjaxResult.error(403, "无权限编辑帖子");
+        }
         return toAjax(discussionForumService.updateDiscussionForum(discussionForum));
     }
     
-    @ApiOperation(value = "点赞话题", notes = "点赞话题")
+    @ApiOperation(value = "点赞话题", notes = "需 forum:post 权限")
     @PostMapping("/like/{id}")
-    public AjaxResult likeTopic(@PathVariable("id") Long id) {
+    public AjaxResult likeTopic(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "forum:post")) {
+            return AjaxResult.error(403, "无权限操作");
+        }
         DiscussionForum forum = discussionForumService.selectDiscussionForumById(id);
         if (forum == null) {
             return AjaxResult.error("话题不存在");

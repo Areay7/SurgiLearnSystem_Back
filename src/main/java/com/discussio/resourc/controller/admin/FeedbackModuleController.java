@@ -14,6 +14,7 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -28,9 +29,15 @@ public class FeedbackModuleController extends BaseController {
     @Autowired
     private IFeedbackModuleService feedbackModuleService;
 
-    @ApiOperation(value = "反馈评价模块列表", notes = "反馈评价模块列表")
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    @ApiOperation(value = "反馈评价模块列表", notes = "需 feedback:view 权限")
     @GetMapping("/list")
-    public ResultTable FeedbackModulelist(Tablepar tablepar) {
+    public ResultTable FeedbackModulelist(Tablepar tablepar, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "feedback:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看反馈", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<FeedbackModule> queryWrapper = new QueryWrapper<>();
         if (tablepar != null && tablepar.getSearchText() != null && !tablepar.getSearchText().isEmpty()) {
             queryWrapper.like("module_name", tablepar.getSearchText());
@@ -44,9 +51,12 @@ public class FeedbackModuleController extends BaseController {
         return pageTable(page.getList(), page.getTotal());
     }
 
-    @ApiOperation(value = "根据模块类型获取列表", notes = "根据模块类型获取反馈评价模块列表")
+    @ApiOperation(value = "根据模块类型获取列表", notes = "需 feedback:view 权限")
     @GetMapping("/listByType")
-    public AjaxResult listByType(@RequestParam String moduleType) {
+    public AjaxResult listByType(@RequestParam String moduleType, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "feedback:view")) {
+            return AjaxResult.error(403, "无权限查看反馈");
+        }
         try {
             return AjaxResult.success(feedbackModuleService.getFeedbackModuleListByModuleType(moduleType));
         } catch (Exception e) {
@@ -66,9 +76,12 @@ public class FeedbackModuleController extends BaseController {
         return toAjax(feedbackModuleService.deleteFeedbackModuleByIds(ids));
     }
 
-    @ApiOperation(value = "反馈评价模块详情", notes = "获取反馈评价模块详情")
+    @ApiOperation(value = "反馈评价模块详情", notes = "需 feedback:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult FeedbackModuledetail(@PathVariable("id") Long id) {
+    public AjaxResult FeedbackModuledetail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "feedback:view")) {
+            return AjaxResult.error(403, "无权限查看反馈");
+        }
         return AjaxResult.success(feedbackModuleService.selectFeedbackModuleById(id));
     }
 

@@ -156,13 +156,54 @@ CREATE TABLE IF NOT EXISTS `system_settings` (
 -- 用户权限管理表
 CREATE TABLE IF NOT EXISTS `user_permission` (
   `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT(20) DEFAULT NULL COMMENT '用户ID',
+  `user_id` BIGINT(20) DEFAULT NULL COMMENT '用户ID(students.id)',
+  `user_phone` VARCHAR(20) DEFAULT NULL COMMENT '用户手机号',
   `permission_code` VARCHAR(100) DEFAULT NULL COMMENT '权限代码',
   `permission_name` VARCHAR(200) DEFAULT NULL COMMENT '权限名称',
   `is_active` INT(11) DEFAULT 1 COMMENT '是否启用 0-否 1-是',
+  `grant_type` VARCHAR(20) DEFAULT 'grant' COMMENT 'grant-授予 revoke-收回',
   PRIMARY KEY (`id`),
-  KEY `idx_user_id` (`user_id`)
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_user_phone` (`user_phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户权限管理表';
+
+-- 权限定义表
+CREATE TABLE IF NOT EXISTS `permission_def` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `permission_code` VARCHAR(100) NOT NULL COMMENT '权限代码',
+  `permission_name` VARCHAR(200) NOT NULL COMMENT '权限名称',
+  `module` VARCHAR(80) DEFAULT NULL COMMENT '所属模块',
+  `description` VARCHAR(500) DEFAULT NULL COMMENT '描述',
+  `sort_order` INT(11) DEFAULT 0,
+  `create_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_permission_code` (`permission_code`),
+  KEY `idx_module` (`module`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限定义表';
+
+-- 角色表
+CREATE TABLE IF NOT EXISTS `role` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `role_code` VARCHAR(50) NOT NULL COMMENT '角色代码',
+  `role_name` VARCHAR(100) NOT NULL COMMENT '角色名称',
+  `description` VARCHAR(500) DEFAULT NULL COMMENT '描述',
+  `user_type_flag` INT(11) DEFAULT NULL COMMENT '对应用户类型',
+  `create_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_role_code` (`role_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
+
+-- 角色权限关联表
+CREATE TABLE IF NOT EXISTS `role_permission` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `role_id` BIGINT(20) NOT NULL,
+  `permission_code` VARCHAR(100) NOT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_role_permission` (`role_id`, `permission_code`),
+  KEY `idx_role_id` (`role_id`),
+  KEY `idx_permission_code` (`permission_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
 
 -- ============================================
 -- 教学管理模块表
@@ -189,7 +230,115 @@ CREATE TABLE IF NOT EXISTS `training` (
   KEY `idx_start_date` (`start_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='护理培训表';
 
--- 学习资料管理表
+-- 学习资料库（培训资料白板引用）
+CREATE TABLE IF NOT EXISTS `learning_materials` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(200) NOT NULL COMMENT '标题',
+  `description` VARCHAR(1000) DEFAULT NULL COMMENT '描述',
+  `category` VARCHAR(100) DEFAULT NULL COMMENT '分类',
+  `tags` VARCHAR(255) DEFAULT NULL COMMENT '标签',
+  `file_type` VARCHAR(20) DEFAULT NULL COMMENT '文件类型后缀',
+  `file_size` BIGINT(20) DEFAULT NULL COMMENT '文件大小',
+  `file_path` VARCHAR(500) DEFAULT NULL COMMENT '文件存储路径',
+  `original_name` VARCHAR(255) DEFAULT NULL COMMENT '原始文件名',
+  `uploader_id` VARCHAR(100) DEFAULT NULL COMMENT '上传人ID',
+  `uploader_name` VARCHAR(100) DEFAULT NULL COMMENT '上传人姓名',
+  `view_count` INT(11) DEFAULT 0,
+  `download_count` INT(11) DEFAULT 0,
+  `status` VARCHAR(50) DEFAULT '已发布',
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_category` (`category`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学习资料管理表';
+
+-- 培训-资料关联表
+CREATE TABLE IF NOT EXISTS `training_material` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `training_id` BIGINT(20) NOT NULL,
+  `material_id` BIGINT(20) NOT NULL,
+  `sort_order` INT(11) DEFAULT 0,
+  `required` TINYINT(1) DEFAULT 1,
+  `create_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_training_id` (`training_id`),
+  KEY `idx_material_id` (`material_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='培训-资料关联';
+
+-- 培训进度表
+CREATE TABLE IF NOT EXISTS `training_progress` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `training_id` BIGINT(20) NOT NULL,
+  `student_id` BIGINT(20) NOT NULL,
+  `student_name` VARCHAR(100) DEFAULT NULL,
+  `progress_percent` INT(11) DEFAULT 0,
+  `completed_count` INT(11) DEFAULT 0,
+  `total_count` INT(11) DEFAULT 0,
+  `status` VARCHAR(50) DEFAULT NULL,
+  `last_study_time` DATETIME DEFAULT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_training_student` (`training_id`, `student_id`),
+  KEY `idx_student_id` (`student_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='培训进度';
+
+-- 培训资料完成明细表
+CREATE TABLE IF NOT EXISTS `training_material_progress` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `training_id` BIGINT(20) NOT NULL,
+  `material_id` BIGINT(20) NOT NULL,
+  `student_id` BIGINT(20) NOT NULL,
+  `progress_percent` INT(11) DEFAULT 0,
+  `completed` TINYINT(1) DEFAULT 0,
+  `last_position` INT(11) DEFAULT 0,
+  `last_study_time` DATETIME DEFAULT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tmp` (`training_id`, `material_id`, `student_id`),
+  KEY `idx_training_material` (`training_id`, `material_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='培训资料完成明细';
+
+-- 培训资料白板内容块表
+CREATE TABLE IF NOT EXISTS `training_content_blocks` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `training_id` BIGINT(20) NOT NULL,
+  `block_type` VARCHAR(20) NOT NULL,
+  `sort_order` INT(11) DEFAULT 0,
+  `content` TEXT DEFAULT NULL,
+  `material_id` BIGINT(20) DEFAULT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_training_id` (`training_id`),
+  KEY `idx_sort` (`training_id`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='培训资料白板内容块';
+
+-- 培训内容块进度表
+CREATE TABLE IF NOT EXISTS `training_content_block_progress` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `training_id` BIGINT(20) NOT NULL,
+  `block_id` BIGINT(20) NOT NULL,
+  `student_id` BIGINT(20) NOT NULL,
+  `block_type` VARCHAR(20) NOT NULL,
+  `viewed` TINYINT(1) DEFAULT 0,
+  `view_duration` INT(11) DEFAULT 0,
+  `play_progress` INT(11) DEFAULT 0,
+  `scroll_progress` INT(11) DEFAULT 0,
+  `downloaded` TINYINT(1) DEFAULT 0,
+  `first_view_time` DATETIME DEFAULT NULL,
+  `last_view_time` DATETIME DEFAULT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_block_student` (`block_id`, `student_id`),
+  KEY `idx_training_student` (`training_id`, `student_id`),
+  KEY `idx_block_id` (`block_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='培训内容块进度';
+
+-- 课程资料表（schedule 等模块使用）
 CREATE TABLE IF NOT EXISTS `materials` (
   `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
   `material_id` BIGINT(20) DEFAULT NULL COMMENT '资料ID',
@@ -364,6 +513,42 @@ CREATE TABLE IF NOT EXISTS `students` (
   KEY `idx_department` (`department`),
   KEY `idx_user_type` (`user_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学员记录管理表';
+
+-- 班级管理表
+CREATE TABLE IF NOT EXISTS `teaching_class` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `class_code` VARCHAR(50) DEFAULT NULL COMMENT '班级编码',
+  `class_name` VARCHAR(200) NOT NULL COMMENT '班级名称',
+  `description` TEXT DEFAULT NULL COMMENT '班级描述',
+  `status` VARCHAR(50) DEFAULT '正常' COMMENT '状态',
+  `create_time` DATETIME DEFAULT NULL,
+  `update_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_class_name` (`class_name`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='班级表';
+
+CREATE TABLE IF NOT EXISTS `teaching_class_instructor` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `class_id` BIGINT(20) NOT NULL,
+  `student_id` BIGINT(20) NOT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_class_instructor` (`class_id`, `student_id`),
+  KEY `idx_class_id` (`class_id`),
+  KEY `idx_student_id` (`student_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='班级讲师关联表';
+
+CREATE TABLE IF NOT EXISTS `teaching_class_student` (
+  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `class_id` BIGINT(20) NOT NULL,
+  `student_id` BIGINT(20) NOT NULL,
+  `create_time` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_class_student` (`class_id`, `student_id`),
+  KEY `idx_class_id` (`class_id`),
+  KEY `idx_student_id` (`student_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='班级学员关联表';
 
 -- 学习进度跟踪表
 CREATE TABLE IF NOT EXISTS `progress` (

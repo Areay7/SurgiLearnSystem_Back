@@ -61,55 +61,54 @@ public class VideosController extends BaseController {
     
     @Value("${file.upload-path:./uploads}")
     private String uploadPath;
-    
-    /**
-     * 检查用户是否有删除权限（仅管理员）
-     */
+
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
     private boolean canDelete(HttpServletRequest request) {
+        if (permissionHelper != null) return permissionHelper.hasPermission(request, "video:delete");
         try {
             String auth = request.getHeader("Authorization");
             if (auth == null || auth.trim().isEmpty()) return false;
             String token = auth.startsWith("Bearer ") ? auth.substring("Bearer ".length()).trim() : auth.trim();
             String username = loginService.parseUsernameFromToken(token);
             if (username == null || username.trim().isEmpty()) return false;
-
             LoginDiscussionForum user = loginService.getUserInfo(username);
             if (user != null && user.getUserType() != null && user.getUserType() == 1) return true;
-
             if (studentsService != null) {
                 Students s = studentsService.selectStudentsByPhone(username);
                 return s != null && s.getUserType() != null && s.getUserType() == 3;
             }
             return false;
-        } catch (Exception e) {
-            return false;
-        }
+        } catch (Exception e) { return false; }
     }
-    
-    /**
-     * 检查用户是否有上传权限（讲师或管理员）
-     */
+
+    private boolean canView(HttpServletRequest request) {
+        if (permissionHelper != null) return permissionHelper.hasPermission(request, "video:view");
+        return true; // 无权限配置时默认所有人可观看
+    }
+
+    private boolean canFavorite(HttpServletRequest request) {
+        if (permissionHelper != null) return permissionHelper.hasPermission(request, "video:favorite");
+        return true; // 无权限配置时默认所有人可收藏
+    }
+
     private boolean canUpload(HttpServletRequest request) {
+        if (permissionHelper != null) return permissionHelper.hasPermission(request, "video:upload");
         try {
             String auth = request.getHeader("Authorization");
             if (auth == null || auth.trim().isEmpty()) return false;
             String token = auth.startsWith("Bearer ") ? auth.substring("Bearer ".length()).trim() : auth.trim();
             String username = loginService.parseUsernameFromToken(token);
             if (username == null || username.trim().isEmpty()) return false;
-
             LoginDiscussionForum user = loginService.getUserInfo(username);
-            // 0-普通用户 1-管理员
             if (user != null && user.getUserType() != null && user.getUserType() == 1) return true;
-
-            // students.user_type: 1=学员 2=讲师 3=管理员
             if (studentsService != null) {
                 Students s = studentsService.selectStudentsByPhone(username);
                 return s != null && s.getUserType() != null && (s.getUserType() == 2 || s.getUserType() == 3);
             }
             return false;
-        } catch (Exception e) {
-            return false;
-        }
+        } catch (Exception e) { return false; }
     }
     
     /**
@@ -126,7 +125,7 @@ public class VideosController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "获取视频列表", notes = "分页获取视频列表")
+    @ApiOperation(value = "获取视频列表", notes = "需 video:view 权限")
     @GetMapping("/list")
     public ResultTable list(
             @RequestParam(required = false) Integer page,
@@ -134,6 +133,9 @@ public class VideosController extends BaseController {
             @RequestParam(required = false) String videoType,
             @RequestParam(required = false) String searchText,
             HttpServletRequest request) {
+        if (!canView(request)) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限观看视频", 0, Collections.emptyList());
+        }
         PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 10);
         
         QueryWrapper<Videos> queryWrapper = new QueryWrapper<>();
@@ -191,9 +193,12 @@ public class VideosController extends BaseController {
         return pageTable(resultList, pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "获取视频详情", notes = "根据ID获取视频详情")
+    @ApiOperation(value = "获取视频详情", notes = "需 video:view 权限")
     @GetMapping("/detail/{id}")
     public AjaxResult detail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (!canView(request)) {
+            return AjaxResult.error(403, "无权限观看视频");
+        }
         Videos video = videosService.selectVideosById(id);
         if (video == null) {
             return AjaxResult.error("视频不存在");
@@ -351,9 +356,12 @@ public class VideosController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "添加收藏", notes = "添加视频收藏")
+    @ApiOperation(value = "添加收藏", notes = "需 video:favorite 权限")
     @PostMapping("/favorite/{id}")
     public AjaxResult addFavorite(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (!canFavorite(request)) {
+            return AjaxResult.error(403, "无权限收藏视频");
+        }
         String userId = getCurrentUserId(request);
         if (userId == null) {
             return AjaxResult.error("请先登录");
@@ -367,9 +375,12 @@ public class VideosController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "取消收藏", notes = "取消视频收藏")
+    @ApiOperation(value = "取消收藏", notes = "需 video:favorite 权限")
     @DeleteMapping("/favorite/{id}")
     public AjaxResult removeFavorite(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (!canFavorite(request)) {
+            return AjaxResult.error(403, "无权限取消收藏");
+        }
         String userId = getCurrentUserId(request);
         if (userId == null) {
             return AjaxResult.error("请先登录");
@@ -383,12 +394,15 @@ public class VideosController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "获取我的收藏", notes = "获取当前用户的收藏视频列表")
+    @ApiOperation(value = "获取我的收藏", notes = "需 video:favorite 权限")
     @GetMapping("/myFavorites")
     public ResultTable myFavorites(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer limit,
             HttpServletRequest request) {
+        if (!canFavorite(request)) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看收藏", 0, Collections.emptyList());
+        }
         String userId = getCurrentUserId(request);
         if (userId == null) {
             return pageTable(new ArrayList<>(), 0);
@@ -434,9 +448,12 @@ public class VideosController extends BaseController {
         return pageTable(resultList, pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "获取视频类型列表", notes = "获取所有视频类型（专题）")
+    @ApiOperation(value = "获取视频类型列表", notes = "需 video:view 权限")
     @GetMapping("/types")
-    public AjaxResult getTypes() {
+    public AjaxResult getTypes(HttpServletRequest request) {
+        if (!canView(request)) {
+            return AjaxResult.error(403, "无权限观看视频");
+        }
         QueryWrapper<Videos> queryWrapper = new QueryWrapper<>();
         queryWrapper.select("DISTINCT video_type");
         queryWrapper.isNotNull("video_type");
@@ -453,9 +470,12 @@ public class VideosController extends BaseController {
         return AjaxResult.success(types);
     }
 
-    @ApiOperation(value = "预览视频文件", notes = "根据ID在线预览视频（浏览器内播放）")
+    @ApiOperation(value = "预览视频文件", notes = "需 video:view 权限")
     @GetMapping("/preview/{id}")
-    public ResponseEntity<Resource> preview(@PathVariable("id") Long id) {
+    public ResponseEntity<Resource> preview(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (!canView(request)) {
+            return ResponseEntity.status(403).build();
+        }
         try {
             Videos video = videosService.selectVideosById(id);
             if (video == null || video.getVideoUrl() == null) {

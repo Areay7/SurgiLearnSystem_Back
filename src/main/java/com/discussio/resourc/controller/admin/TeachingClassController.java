@@ -32,6 +32,9 @@ public class TeachingClassController extends BaseController {
     @Autowired(required = false)
     private IStudentsService studentsService;
 
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
     public TeachingClassController(ITeachingClassService classService,
                                   LoginDiscussionForumService loginService) {
         this.classService = classService;
@@ -44,7 +47,8 @@ public class TeachingClassController extends BaseController {
                                      @RequestParam(required = false) Integer limit,
                                      @RequestParam(required = false) String searchText,
                                      HttpServletRequest request) {
-        if (!isAdminOrInstructor(request)) return pageTable(java.util.Collections.emptyList(), 0);
+        boolean canView = permissionHelper != null ? permissionHelper.hasAnyPermission(request, "class:view", "class:students", "class:instructors") : isAdminOrInstructor(request);
+        if (!canView) return pageTable(java.util.Collections.emptyList(), 0);
         QueryWrapper<TeachingClass> qw = new QueryWrapper<>();
         qw.eq("status", "正常");
         if (searchText != null && !searchText.trim().isEmpty()) {
@@ -63,7 +67,8 @@ public class TeachingClassController extends BaseController {
                             @RequestParam(required = false) Integer limit,
                             @RequestParam(required = false) String searchText,
                             HttpServletRequest request) {
-        if (!isAdmin(request)) return pageTable(java.util.Collections.emptyList(), 0);
+        boolean canView = permissionHelper != null ? permissionHelper.hasPermission(request, "class:view") : isAdmin(request);
+        if (!canView) return pageTable(java.util.Collections.emptyList(), 0);
         QueryWrapper<TeachingClass> qw = new QueryWrapper<>();
         if (searchText != null && !searchText.trim().isEmpty()) {
             qw.and(w -> w.like("class_name", searchText).or().like("class_code", searchText));
@@ -75,66 +80,75 @@ public class TeachingClassController extends BaseController {
         return pageTable(p.getList(), p.getTotal());
     }
 
-    @ApiOperation(value = "新增班级", notes = "仅管理员")
+    @ApiOperation(value = "新增班级", notes = "需 class:create 权限")
     @PostMapping("/add")
     public AjaxResult add(@RequestBody TeachingClass item, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canCreate = permissionHelper != null ? permissionHelper.hasPermission(request, "class:create") : isAdmin(request);
+        if (!canCreate) return AjaxResult.error(403, "无权限（需要班级创建权限）");
         return toAjax(classService.insert(item));
     }
 
-    @ApiOperation(value = "编辑班级", notes = "仅管理员")
+    @ApiOperation(value = "编辑班级", notes = "需 class:edit 权限")
     @PostMapping("/edit")
     public AjaxResult edit(@RequestBody TeachingClass item, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canEdit = permissionHelper != null ? permissionHelper.hasPermission(request, "class:edit") : isAdmin(request);
+        if (!canEdit) return AjaxResult.error(403, "无权限（需要班级编辑权限）");
         return toAjax(classService.update(item));
     }
 
-    @ApiOperation(value = "删除班级", notes = "仅管理员")
+    @ApiOperation(value = "删除班级", notes = "需 class:delete 权限")
     @DeleteMapping("/remove")
     public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canDelete = permissionHelper != null ? permissionHelper.hasPermission(request, "class:delete") : isAdmin(request);
+        if (!canDelete) return AjaxResult.error(403, "无权限（需要班级删除权限）");
         return toAjax(classService.deleteByIds(ids));
     }
 
-    @ApiOperation(value = "班级讲师列表", notes = "仅管理员")
+    @ApiOperation(value = "班级讲师列表", notes = "需 class:instructors 权限")
     @GetMapping("/{classId}/instructors")
     public AjaxResult instructors(@PathVariable Long classId, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canView = permissionHelper != null ? permissionHelper.hasAnyPermission(request, "class:view", "class:instructors") : isAdmin(request);
+        if (!canView) return AjaxResult.error(403, "无权限");
         return AjaxResult.success(classService.listInstructors(classId));
     }
 
-    @ApiOperation(value = "班级学员列表", notes = "仅管理员")
+    @ApiOperation(value = "班级学员列表", notes = "需 class:students 权限")
     @GetMapping("/{classId}/students")
     public AjaxResult students(@PathVariable Long classId, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canView = permissionHelper != null ? permissionHelper.hasAnyPermission(request, "class:view", "class:students") : isAdmin(request);
+        if (!canView) return AjaxResult.error(403, "无权限");
         return AjaxResult.success(classService.listStudents(classId));
     }
 
-    @ApiOperation(value = "批量添加讲师", notes = "仅管理员")
+    @ApiOperation(value = "批量添加讲师", notes = "需 class:instructors 权限")
     @PostMapping("/{classId}/instructors/batchAdd")
     public AjaxResult batchAddInstructors(@PathVariable Long classId, @RequestBody IdsReq req, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canManage = permissionHelper != null ? permissionHelper.hasPermission(request, "class:instructors") : isAdmin(request);
+        if (!canManage) return AjaxResult.error(403, "无权限");
         return toAjax(classService.batchAddInstructors(classId, req.getIds()));
     }
 
-    @ApiOperation(value = "批量删除讲师", notes = "仅管理员")
+    @ApiOperation(value = "批量删除讲师", notes = "需 class:instructors 权限")
     @PostMapping("/{classId}/instructors/batchRemove")
     public AjaxResult batchRemoveInstructors(@PathVariable Long classId, @RequestBody IdsReq req, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canManage = permissionHelper != null ? permissionHelper.hasPermission(request, "class:instructors") : isAdmin(request);
+        if (!canManage) return AjaxResult.error(403, "无权限");
         return toAjax(classService.batchRemoveInstructors(classId, req.getIds()));
     }
 
-    @ApiOperation(value = "批量添加学员", notes = "仅管理员")
+    @ApiOperation(value = "批量添加学员", notes = "需 class:students 权限")
     @PostMapping("/{classId}/students/batchAdd")
     public AjaxResult batchAddStudents(@PathVariable Long classId, @RequestBody IdsReq req, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canManage = permissionHelper != null ? permissionHelper.hasPermission(request, "class:students") : isAdmin(request);
+        if (!canManage) return AjaxResult.error(403, "无权限");
         return toAjax(classService.batchAddStudents(classId, req.getIds()));
     }
 
-    @ApiOperation(value = "批量删除学员", notes = "仅管理员")
+    @ApiOperation(value = "批量删除学员", notes = "需 class:students 权限")
     @PostMapping("/{classId}/students/batchRemove")
     public AjaxResult batchRemoveStudents(@PathVariable Long classId, @RequestBody IdsReq req, HttpServletRequest request) {
-        if (!isAdmin(request)) return AjaxResult.error(403, "无权限（仅管理员可操作）");
+        boolean canManage = permissionHelper != null ? permissionHelper.hasPermission(request, "class:students") : isAdmin(request);
+        if (!canManage) return AjaxResult.error(403, "无权限");
         return toAjax(classService.batchRemoveStudents(classId, req.getIds()));
     }
 

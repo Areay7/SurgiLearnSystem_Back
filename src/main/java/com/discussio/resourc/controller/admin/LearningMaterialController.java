@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -53,6 +54,9 @@ public class LearningMaterialController extends BaseController {
     @Value("${file.upload-max-size-mb:500}")
     private long uploadMaxSizeMb;
 
+    @Autowired(required = false)
+    private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
     // 支持的后缀
     private static final String[] ALLOWED_EXT = new String[]{
             ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
@@ -68,7 +72,7 @@ public class LearningMaterialController extends BaseController {
         return false;
     }
 
-    @ApiOperation(value = "资料列表", notes = "分页、搜索、分类/标签/状态过滤")
+    @ApiOperation(value = "资料列表", notes = "需 material:view 权限")
     @GetMapping("/list")
     public ResultTable list(
             @RequestParam(required = false) Integer page,
@@ -76,7 +80,11 @@ public class LearningMaterialController extends BaseController {
             @RequestParam(required = false) String searchText,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String tags,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:view")) {
+            return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看资料", 0, java.util.Collections.emptyList());
+        }
         QueryWrapper<LearningMaterial> qw = new QueryWrapper<>();
 
         if (StringUtils.isNotBlank(searchText)) {
@@ -100,9 +108,12 @@ public class LearningMaterialController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "新增资料（仅元数据）", notes = "不含文件上传")
+    @ApiOperation(value = "新增资料（仅元数据）", notes = "需 material:create 权限")
     @PostMapping("/add")
-    public AjaxResult add(@RequestBody LearningMaterial material) {
+    public AjaxResult add(@RequestBody LearningMaterial material, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:create")) {
+            return AjaxResult.error(403, "无权限新增资料");
+        }
         try {
             return toAjax(materialService.insertLearningMaterial(material));
         } catch (Exception e) {
@@ -110,9 +121,12 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "修改资料", notes = "修改元数据")
+    @ApiOperation(value = "修改资料", notes = "需 material:edit 权限")
     @PostMapping("/edit")
-    public AjaxResult edit(@RequestBody LearningMaterial material) {
+    public AjaxResult edit(@RequestBody LearningMaterial material, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:edit")) {
+            return AjaxResult.error(403, "无权限编辑资料");
+        }
         try {
             return toAjax(materialService.updateLearningMaterial(material));
         } catch (Exception e) {
@@ -120,19 +134,25 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "删除资料", notes = "删除资料")
+    @ApiOperation(value = "删除资料", notes = "需 material:delete 权限")
     @DeleteMapping("/remove")
-    public AjaxResult remove(@RequestParam String ids) {
+    public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:delete")) {
+            return AjaxResult.error(403, "无权限删除资料");
+        }
         return toAjax(materialService.deleteLearningMaterialByIds(ids));
     }
 
-    @ApiOperation(value = "资料详情", notes = "获取资料详情")
+    @ApiOperation(value = "资料详情", notes = "需 material:view 权限")
     @GetMapping("/detail/{id}")
-    public AjaxResult detail(@PathVariable("id") Long id) {
+    public AjaxResult detail(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:view")) {
+            return AjaxResult.error(403, "无权限查看资料");
+        }
         return AjaxResult.success(materialService.selectLearningMaterialById(id));
     }
 
-    @ApiOperation(value = "上传资料文件并创建记录", notes = "multipart 上传，含基本元数据")
+    @ApiOperation(value = "上传资料文件并创建记录", notes = "需 material:create 权限")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public AjaxResult upload(
             @RequestParam("file") MultipartFile file,
@@ -142,8 +162,12 @@ public class LearningMaterialController extends BaseController {
             @RequestParam(value = "tags", required = false) String tags,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "uploaderId", required = false) String uploaderId,
-            @RequestParam(value = "uploaderName", required = false) String uploaderName
+            @RequestParam(value = "uploaderName", required = false) String uploaderName,
+            HttpServletRequest req
     ) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(req, "material:create")) {
+            return AjaxResult.error(403, "无权限上传资料");
+        }
         try {
             if (file == null || file.isEmpty()) {
                 return AjaxResult.error("文件不能为空");
@@ -234,9 +258,12 @@ public class LearningMaterialController extends BaseController {
         return base + fileExt;
     }
 
-    @ApiOperation(value = "获取资料下载文件名", notes = "用于前端下载时设置正确文件名")
+    @ApiOperation(value = "获取资料下载文件名", notes = "需 material:download 权限")
     @GetMapping("/downloadFilename/{id}")
-    public AjaxResult getDownloadFilename(@PathVariable("id") Long id) {
+    public AjaxResult getDownloadFilename(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:download")) {
+            return AjaxResult.error(403, "无权限下载资料");
+        }
         try {
             LearningMaterial material = materialService.selectLearningMaterialById(id);
             if (material == null || material.getFilePath() == null) {
@@ -253,9 +280,12 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "下载资料文件", notes = "根据ID下载")
+    @ApiOperation(value = "下载资料文件", notes = "需 material:download 权限")
     @GetMapping("/download/{id}")
-    public ResponseEntity<Resource> download(@PathVariable("id") Long id) {
+    public ResponseEntity<Resource> download(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:download")) {
+            return ResponseEntity.status(403).build();
+        }
         try {
             LearningMaterial material = materialService.selectLearningMaterialById(id);
             if (material == null || material.getFilePath() == null) {
@@ -286,9 +316,12 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "预览资料文件", notes = "根据ID在线预览（浏览器内打开）")
+    @ApiOperation(value = "预览资料文件", notes = "需 material:view 权限")
     @GetMapping("/preview/{id}")
-    public ResponseEntity<Resource> preview(@PathVariable("id") Long id) {
+    public ResponseEntity<Resource> preview(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:view")) {
+            return ResponseEntity.status(403).build();
+        }
         try {
             LearningMaterial material = materialService.selectLearningMaterialById(id);
             if (material == null || material.getFilePath() == null) {
@@ -338,9 +371,12 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "增加下载次数", notes = "下载统计")
+    @ApiOperation(value = "增加下载次数", notes = "需 material:download 权限")
     @PostMapping("/incrementDownload/{id}")
-    public AjaxResult incrementDownload(@PathVariable("id") Long id) {
+    public AjaxResult incrementDownload(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:download")) {
+            return AjaxResult.error(403, "无权限下载资料");
+        }
         LearningMaterial m = materialService.selectLearningMaterialById(id);
         if (m == null) return AjaxResult.error("资料不存在");
         int count = m.getDownloadCount() == null ? 0 : m.getDownloadCount();
@@ -348,9 +384,12 @@ public class LearningMaterialController extends BaseController {
         return toAjax(materialService.updateLearningMaterial(m));
     }
 
-    @ApiOperation(value = "增加浏览次数", notes = "浏览统计")
+    @ApiOperation(value = "增加浏览次数", notes = "需 material:view 权限")
     @PostMapping("/incrementView/{id}")
-    public AjaxResult incrementView(@PathVariable("id") Long id) {
+    public AjaxResult incrementView(@PathVariable("id") Long id, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:view")) {
+            return AjaxResult.error(403, "无权限查看资料");
+        }
         LearningMaterial m = materialService.selectLearningMaterialById(id);
         if (m == null) return AjaxResult.error("资料不存在");
         int count = m.getViewCount() == null ? 0 : m.getViewCount();

@@ -5,18 +5,20 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.util.Date;
+
 /**
- * 用户权限管理实体
+ * 权限定义实体
  */
 @Data
-@TableName("user_permission")
-public class UserPermission {
+@TableName("permission_def")
+public class PermissionDef {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private Long userId;           // students.id
-    private String userPhone;      // 用户手机号
     private String permissionCode;
     private String permissionName;
-    private Integer isActive;
-    private String grantType;      // grant-授予 revoke-收回
+    private String module;
+    private String description;
+    private Integer sortOrder;
+    private Date createTime;
 }
