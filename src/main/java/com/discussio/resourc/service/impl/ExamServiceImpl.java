@@ -1,19 +1,24 @@
 package com.discussio.resourc.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.discussio.resourc.common.support.ConvertUtil;
+import com.discussio.resourc.mapper.auto.ExamClassMapper;
 import com.discussio.resourc.mapper.auto.ExamMapper;
 import com.discussio.resourc.model.auto.Exam;
+import com.discussio.resourc.model.auto.ExamClass;
 import com.discussio.resourc.service.IExamService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 考试系统Service业务处理
@@ -23,6 +28,9 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
         implements IExamService {
     
     private static final Logger logger = LoggerFactory.getLogger(ExamServiceImpl.class);
+
+    @Autowired
+    private ExamClassMapper examClassMapper;
 
     @Override
     public Exam selectExamById(Long id) {
@@ -105,7 +113,16 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
     }
 
     @Override
+    public List<Exam> selectExamListForStudent(Long studentId, String searchText, String examType, String status, Date examDate) {
+        return this.baseMapper.selectExamListForStudent(studentId, searchText, examType, status, examDate);
+    }
+
+    @Override
     public int deleteExamByIds(String ids) {
+        for (String sid : ConvertUtil.toStrArray(ids)) {
+            Long id = Long.valueOf(sid);
+            examClassMapper.delete(new QueryWrapper<ExamClass>().eq("exam_id", id));
+        }
         return this.baseMapper.deleteBatchIds(Arrays.asList(ConvertUtil.toStrArray(ids)));
     }
 
@@ -114,6 +131,37 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
         if (id == null) {
             throw new RuntimeException("考试ID不能为空");
         }
+        examClassMapper.delete(new QueryWrapper<ExamClass>().eq("exam_id", id));
         return this.baseMapper.deleteById(id);
+    }
+
+    @Override
+    public List<Long> getExamClassIds(Long examId) {
+        List<ExamClass> list = examClassMapper.selectList(new QueryWrapper<ExamClass>().eq("exam_id", examId));
+        return list.stream().map(ExamClass::getClassId).collect(Collectors.toList());
+    }
+
+    @Override
+    public void setExamClassIds(Long examId, List<Long> classIds) {
+        examClassMapper.delete(new QueryWrapper<ExamClass>().eq("exam_id", examId));
+        if (classIds != null && !classIds.isEmpty()) {
+            for (Long classId : classIds) {
+                if (classId != null) {
+                    ExamClass ec = new ExamClass();
+                    ec.setExamId(examId);
+                    ec.setClassId(classId);
+                    ec.setCreateTime(new Date());
+                    examClassMapper.insert(ec);
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean canStudentAccessExam(Long examId, Long studentId) {
+        List<Long> classIds = getExamClassIds(examId);
+        if (classIds == null || classIds.isEmpty()) return true;
+        List<Exam> allowed = baseMapper.selectExamListForStudent(studentId, null, null, null, null);
+        return allowed.stream().anyMatch(e -> examId.equals(e.getId()));
     }
 }

@@ -24,4 +24,30 @@
     <select id="selectExamById" parameterType="java.lang.Long" resultMap="BaseResultMap">
         SELECT * FROM exam WHERE id = #{id}
     </select>
+
+    <select id="selectExamListForStudent" resultMap="BaseResultMap">
+        SELECT e.* FROM exam e
+        WHERE 1=1
+        <if test="searchText != null and searchText != ''">
+            AND (e.exam_name LIKE CONCAT('%', #{searchText}, '%') OR e.exam_type LIKE CONCAT('%', #{searchText}, '%'))
+        </if>
+        <if test="examType != null and examType != ''">
+            AND e.exam_type = #{examType}
+        </if>
+        <if test="status != null and status != ''">
+            AND e.status = #{status}
+        </if>
+        <if test="examDate != null">
+            AND e.exam_date = #{examDate}
+        </if>
+        AND (
+            NOT EXISTS (SELECT 1 FROM exam_class ec WHERE ec.exam_id = e.id)
+            OR EXISTS (
+                SELECT 1 FROM exam_class ec
+                INNER JOIN teaching_class_student tcs ON tcs.class_id = ec.class_id AND tcs.student_id = #{studentId}
+                WHERE ec.exam_id = e.id
+            )
+        )
+        ORDER BY e.exam_date DESC, e.start_time DESC
+    </select>
 </mapper>

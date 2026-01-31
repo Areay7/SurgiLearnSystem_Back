@@ -1,12 +1,14 @@
 package com.discussio.resourc.model.auto;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 考试系统实体
@@ -38,4 +40,8 @@ public class Exam {
     
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date updateTime;
+
+    /** 指定可见班级ID列表（非数据库字段，空=全员可见） */
+    @TableField(exist = false)
+    private List<Long> classIds;
 }

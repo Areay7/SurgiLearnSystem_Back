@@ -7,8 +7,10 @@ import com.discussio.resourc.common.domain.ResultTable;
 import com.discussio.resourc.model.auto.LoginDiscussionForum;
 import com.discussio.resourc.model.auto.Students;
 import com.discussio.resourc.model.auto.TeachingClass;
+import com.discussio.resourc.service.IStudentsService;
 import com.discussio.resourc.service.ITeachingClassService;
 import com.discussio.resourc.service.LoginDiscussionForumService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
@@ -27,10 +29,32 @@ public class TeachingClassController extends BaseController {
     private final ITeachingClassService classService;
     private final LoginDiscussionForumService loginService;
 
+    @Autowired(required = false)
+    private IStudentsService studentsService;
+
     public TeachingClassController(ITeachingClassService classService,
                                   LoginDiscussionForumService loginService) {
         this.classService = classService;
         this.loginService = loginService;
+    }
+
+    @ApiOperation(value = "班级列表（用于培训/考试指定班级，管理员和讲师可调用）")
+    @GetMapping("/listForAssign")
+    public ResultTable listForAssign(@RequestParam(required = false) Integer page,
+                                     @RequestParam(required = false) Integer limit,
+                                     @RequestParam(required = false) String searchText,
+                                     HttpServletRequest request) {
+        if (!isAdminOrInstructor(request)) return pageTable(java.util.Collections.emptyList(), 0);
+        QueryWrapper<TeachingClass> qw = new QueryWrapper<>();
+        qw.eq("status", "正常");
+        if (searchText != null && !searchText.trim().isEmpty()) {
+            qw.and(w -> w.like("class_name", searchText).or().like("class_code", searchText));
+        }
+        qw.orderByDesc("update_time").orderByDesc("id");
+        PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 200);
+        List<TeachingClass> list = classService.selectList(qw);
+        PageInfo<TeachingClass> p = new PageInfo<>(list);
+        return pageTable(p.getList(), p.getTotal());
     }
 
     @ApiOperation(value = "班级列表（管理员）", notes = "仅管理员可见")
@@ -122,7 +146,31 @@ public class TeachingClassController extends BaseController {
             String username = loginService.parseUsernameFromToken(token);
             if (username == null || username.trim().isEmpty()) return false;
             LoginDiscussionForum user = loginService.getUserInfo(username);
-            return user != null && user.getUserType() != null && user.getUserType() == 1;
+            if (user != null && user.getUserType() != null && user.getUserType() == 1) return true;
+            if (studentsService != null) {
+                Students s = studentsService.selectStudentsByPhone(username);
+                return s != null && s.getUserType() != null && s.getUserType() == 3;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isAdminOrInstructor(HttpServletRequest request) {
+        try {
+            String auth = request.getHeader("Authorization");
+            if (auth == null || auth.trim().isEmpty()) return false;
+            String token = auth.startsWith("Bearer ") ? auth.substring("Bearer ".length()).trim() : auth.trim();
+            String username = loginService.parseUsernameFromToken(token);
+            if (username == null || username.trim().isEmpty()) return false;
+            LoginDiscussionForum user = loginService.getUserInfo(username);
+            if (user != null && user.getUserType() != null && user.getUserType() == 1) return true;
+            if (studentsService != null) {
+                Students s = studentsService.selectStudentsByPhone(username);
+                return s != null && s.getUserType() != null && (s.getUserType() == 2 || s.getUserType() == 3);
+            }
+            return false;
         } catch (Exception e) {
             return false;
         }

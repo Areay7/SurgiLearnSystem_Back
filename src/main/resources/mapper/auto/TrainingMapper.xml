@@ -22,5 +22,28 @@
     <select id="selectTrainingById" parameterType="java.lang.Long" resultMap="BaseResultMap">
         SELECT * FROM training WHERE id = #{id}
     </select>
+
+    <select id="selectTrainingListForStudent" resultMap="BaseResultMap">
+        SELECT t.* FROM training t
+        WHERE 1=1
+        <if test="searchText != null and searchText != ''">
+            AND (t.training_name LIKE CONCAT('%', #{searchText}, '%') OR t.description LIKE CONCAT('%', #{searchText}, '%'))
+        </if>
+        <if test="trainingType != null and trainingType != ''">
+            AND t.training_type = #{trainingType}
+        </if>
+        <if test="status != null and status != ''">
+            AND t.status = #{status}
+        </if>
+        AND (
+            NOT EXISTS (SELECT 1 FROM training_class tc WHERE tc.training_id = t.id)
+            OR EXISTS (
+                SELECT 1 FROM training_class tc
+                INNER JOIN teaching_class_student tcs ON tcs.class_id = tc.class_id AND tcs.student_id = #{studentId}
+                WHERE tc.training_id = t.id
+            )
+        )
+        ORDER BY t.update_time DESC
+    </select>
 </mapper>
 

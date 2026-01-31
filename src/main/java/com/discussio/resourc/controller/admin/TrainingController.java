@@ -23,8 +23,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 护理培训管理（课程+关联资料）
@@ -50,35 +52,57 @@ public class TrainingController extends BaseController {
     @Autowired(required = false)
     private IStudentsService studentsService;
 
-    @ApiOperation(value = "培训列表", notes = "分页、搜索、类型/状态过滤")
+    @ApiOperation(value = "培训列表", notes = "分页、搜索、类型/状态过滤；学员仅看到其所在班级的培训")
     @GetMapping("/list")
     public ResultTable list(@RequestParam(required = false) Integer page,
                             @RequestParam(required = false) Integer limit,
                             @RequestParam(required = false) String searchText,
                             @RequestParam(required = false) String trainingType,
-                            @RequestParam(required = false) String status) {
-        QueryWrapper<Training> qw = new QueryWrapper<>();
-        if (StringUtils.isNotBlank(searchText)) {
-            qw.and(w -> w.like("training_name", searchText).or().like("description", searchText));
-        }
-        if (StringUtils.isNotBlank(trainingType)) {
-            qw.eq("training_type", trainingType.trim());
-        }
-        if (StringUtils.isNotBlank(status)) {
-            qw.eq("status", status.trim());
-        }
-        qw.orderByDesc("update_time");
-
+                            @RequestParam(required = false) String status,
+                            HttpServletRequest request) {
+        UserRole role = resolveUserRole(request);
         PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 10);
-        List<Training> list = trainingService.selectTrainingList(qw);
+        List<Training> list;
+        if (role.student != null && !role.isAdmin && !role.isInstructor) {
+            list = trainingService.selectTrainingListForStudent(role.student.getId(), searchText, trainingType, status);
+        } else {
+            QueryWrapper<Training> qw = new QueryWrapper<>();
+            if (StringUtils.isNotBlank(searchText)) {
+                qw.and(w -> w.like("training_name", searchText).or().like("description", searchText));
+            }
+            if (StringUtils.isNotBlank(trainingType)) {
+                qw.eq("training_type", trainingType.trim());
+            }
+            if (StringUtils.isNotBlank(status)) {
+                qw.eq("status", status.trim());
+            }
+            qw.orderByDesc("update_time");
+            list = trainingService.selectTrainingList(qw);
+        }
         PageInfo<Training> pageInfo = new PageInfo<>(list);
+        list.forEach(this::applyEffectiveStatus);
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
     @ApiOperation(value = "培训详情")
     @GetMapping("/detail/{id}")
-    public AjaxResult detail(@PathVariable("id") Long id) {
-        return AjaxResult.success(trainingService.selectTrainingById(id));
+    public AjaxResult detail(@PathVariable("id") Long id, HttpServletRequest request) {
+        Training t = trainingService.selectTrainingById(id);
+        if (t == null) return AjaxResult.error("培训不存在");
+        List<Long> classIds = trainingService.getTrainingClassIds(id);
+        t.setClassIds(classIds);
+        UserRole role = resolveUserRole(request);
+        if (role.student != null && !role.isAdmin && !role.isInstructor) {
+            if (!classIds.isEmpty()) {
+                List<Long> visible = trainingService.selectTrainingListForStudent(role.student.getId(), null, null, null)
+                    .stream().map(Training::getId).collect(Collectors.toList());
+                if (!visible.contains(id)) {
+                    return AjaxResult.error(403, "您不在该培训的指定班级中，无法查看");
+                }
+            }
+        }
+        applyEffectiveStatus(t);
+        return AjaxResult.success(t);
     }
 
     @ApiOperation(value = "新增培训")
@@ -105,7 +129,11 @@ public class TrainingController extends BaseController {
 
             if (training.getCreateTime() == null) training.setCreateTime(new Date());
             if (training.getUpdateTime() == null) training.setUpdateTime(new Date());
-            return toAjax(trainingService.insertTraining(training));
+            int n = trainingService.insertTraining(training);
+            if (n > 0 && training.getId() != null && training.getClassIds() != null) {
+                trainingService.setTrainingClassIds(training.getId(), training.getClassIds());
+            }
+            return toAjax(n);
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
         }
@@ -119,7 +147,11 @@ public class TrainingController extends BaseController {
             if (!role.isAdmin && !role.isInstructor) {
                 return AjaxResult.error(403, "无权限操作（仅管理员/讲师可编辑培训）");
             }
-            return toAjax(trainingService.updateTraining(training));
+            int n = trainingService.updateTraining(training);
+            if (n > 0 && training.getId() != null) {
+                trainingService.setTrainingClassIds(training.getId(), training.getClassIds());
+            }
+            return toAjax(n);
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
         }
@@ -169,6 +201,32 @@ public class TrainingController extends BaseController {
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
         }
+    }
+
+    /** 根据开始/结束日期计算有效状态：未开始→进行中→已结束 */
+    private void applyEffectiveStatus(Training t) {
+        Date start = t.getStartDate();
+        Date end = t.getEndDate();
+        if (start == null && end == null) return;
+        Date now = new Date();
+        if (start != null && now.before(start)) {
+            t.setStatus("未开始");
+            return;
+        }
+        if (end != null) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(end);
+            cal.set(Calendar.HOUR_OF_DAY, 23);
+            cal.set(Calendar.MINUTE, 59);
+            cal.set(Calendar.SECOND, 59);
+            cal.set(Calendar.MILLISECOND, 999);
+            Date endOfDay = cal.getTime();
+            if (now.after(endOfDay)) {
+                t.setStatus("已完成");
+                return;
+            }
+        }
+        t.setStatus("进行中");
     }
 
     private static class UserRole {

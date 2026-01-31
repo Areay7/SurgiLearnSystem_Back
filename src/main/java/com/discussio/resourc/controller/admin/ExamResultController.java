@@ -5,7 +5,10 @@ import com.discussio.resourc.common.config.BaseController;
 import com.discussio.resourc.common.domain.AjaxResult;
 import com.discussio.resourc.common.domain.ResultTable;
 import com.discussio.resourc.model.auto.ExamResult;
+import com.discussio.resourc.model.auto.Students;
 import com.discussio.resourc.service.IExamResultService;
+import com.discussio.resourc.service.IExamService;
+import com.discussio.resourc.service.IStudentsService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
@@ -26,6 +29,12 @@ public class ExamResultController extends BaseController {
     
     @Autowired
     private IExamResultService examResultService;
+
+    @Autowired(required = false)
+    private IExamService examService;
+
+    @Autowired(required = false)
+    private IStudentsService studentsService;
 
     @ApiOperation(value = "考试结果列表", notes = "获取考试结果列表")
     @GetMapping("/list")
@@ -73,6 +82,14 @@ public class ExamResultController extends BaseController {
     @PostMapping("/start")
     public AjaxResult startExam(@RequestBody ExamResult examResult) {
         try {
+            if (examService != null && studentsService != null && examResult.getExamId() != null && examResult.getStudentId() != null) {
+                Students s = studentsService.selectStudentsByPhone(examResult.getStudentId().trim());
+                if (s != null && s.getId() != null) {
+                    if (!examService.canStudentAccessExam(examResult.getExamId(), s.getId())) {
+                        return AjaxResult.error(403, "您不在该考试的指定班级中，无法参加");
+                    }
+                }
+            }
             // 检查是否已有记录
             ExamResult existing = examResultService.selectExamResultByExamIdAndStudentId(
                 examResult.getExamId(), examResult.getStudentId());

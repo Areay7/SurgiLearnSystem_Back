@@ -1,6 +1,7 @@
 package com.discussio.resourc.model.auto;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 护理培训实体
@@ -35,4 +37,8 @@ public class Training {
     private String status;
     private Date createTime;
     private Date updateTime;
+
+    /** 指定可见班级ID列表（非数据库字段，空=全员可见） */
+    @TableField(exist = false)
+    private List<Long> classIds;
 }

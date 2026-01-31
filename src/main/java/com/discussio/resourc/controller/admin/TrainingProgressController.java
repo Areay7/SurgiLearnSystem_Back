@@ -64,6 +64,9 @@ public class TrainingProgressController extends BaseController {
                             @RequestParam Long studentId,
                             @RequestParam(required = false) String studentName) {
         try {
+            if (!trainingService.canStudentAccessTraining(trainingId, studentId)) {
+                return AjaxResult.error(403, "您不在该培训的指定班级中，无法学习");
+            }
             // 检查是否有白板内容块
             List<TrainingContentBlock> blocks = trainingContentBlockService.listByTrainingId(trainingId);
             int total = 0;

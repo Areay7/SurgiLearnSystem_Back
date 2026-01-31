@@ -15,6 +15,8 @@ public interface ITrainingService extends IService<Training> {
 
     List<Training> selectTrainingList(Wrapper<Training> queryWrapper);
 
+    List<Training> selectTrainingListForStudent(Long studentId, String searchText, String trainingType, String status);
+
     int insertTraining(Training training);
 
     int updateTraining(Training training);
@@ -22,5 +24,11 @@ public interface ITrainingService extends IService<Training> {
     int deleteTrainingByIds(String ids);
 
     int deleteTrainingById(Long id);
+
+    List<Long> getTrainingClassIds(Long trainingId);
+
+    void setTrainingClassIds(Long trainingId, List<Long> classIds);
+
+    boolean canStudentAccessTraining(Long trainingId, Long studentId);
 }
 
