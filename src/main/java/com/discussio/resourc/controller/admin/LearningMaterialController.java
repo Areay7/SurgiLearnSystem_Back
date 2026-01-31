@@ -21,6 +21,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -208,6 +211,48 @@ public class LearningMaterialController extends BaseController {
         return underMaterials.exists() ? underMaterials : f;
     }
 
+    /**
+     * 构建下载文件名，确保始终带正确后缀（避免下载后无扩展名）
+     */
+    private String buildDownloadFilename(LearningMaterial material, File file) {
+        String base = StringUtils.isNotBlank(material.getOriginalName()) ? material.getOriginalName() : file.getName();
+        if (StringUtils.isBlank(base)) base = "download";
+        // 若已有后缀则直接返回
+        int lastDot = base.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < base.length() - 1) {
+            return base;
+        }
+        // 从磁盘文件补全后缀
+        String fileExt = "";
+        String fileName = file.getName();
+        if (fileName != null && fileName.contains(".")) {
+            fileExt = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
+        }
+        if (StringUtils.isBlank(fileExt) && StringUtils.isNotBlank(material.getFileType())) {
+            fileExt = material.getFileType().startsWith(".") ? material.getFileType() : "." + material.getFileType();
+        }
+        return base + fileExt;
+    }
+
+    @ApiOperation(value = "获取资料下载文件名", notes = "用于前端下载时设置正确文件名")
+    @GetMapping("/downloadFilename/{id}")
+    public AjaxResult getDownloadFilename(@PathVariable("id") Long id) {
+        try {
+            LearningMaterial material = materialService.selectLearningMaterialById(id);
+            if (material == null || material.getFilePath() == null) {
+                return AjaxResult.error("资料不存在");
+            }
+            File file = resolveFile(material.getFilePath());
+            if (file == null || !file.exists()) {
+                return AjaxResult.error("文件不存在");
+            }
+            String filename = buildDownloadFilename(material, file);
+            return AjaxResult.success("ok", filename);
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
     @ApiOperation(value = "下载资料文件", notes = "根据ID下载")
     @GetMapping("/download/{id}")
     public ResponseEntity<Resource> download(@PathVariable("id") Long id) {
@@ -223,10 +268,18 @@ public class LearningMaterialController extends BaseController {
             Resource res = new FileSystemResource(file);
             String contentType = Files.probeContentType(file.toPath());
             if (contentType == null) contentType = "application/octet-stream";
+            String filename = buildDownloadFilename(material, file);
+            String encodedFilename;
+            try {
+                encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.name()).replace("+", "%20");
+            } catch (UnsupportedEncodingException e) {
+                encodedFilename = file.getName() != null ? file.getName() : "download";
+            }
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
                     .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + (material.getOriginalName() != null ? material.getOriginalName() : file.getName()) + "\"")
+                            "attachment; filename=\"" + filename.replace("\"", "\\\"") + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(res);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();

@@ -23,6 +23,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,6 +33,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * 资源共享平台 Controller
@@ -186,6 +191,41 @@ public class ResourceSharingController extends BaseController {
         }
     }
     
+    /** 构建下载文件名，确保始终带正确后缀 */
+    private String buildDownloadFilename(ResourceSharing resource, File file) {
+        String base = StringUtils.isNotBlank(resource.getResourceName()) ? resource.getResourceName() : file.getName();
+        if (StringUtils.isBlank(base)) base = "resource";
+        int lastDot = base.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < base.length() - 1) {
+            return base;
+        }
+        String fileExt = "";
+        String fileName = file.getName();
+        if (fileName != null && fileName.contains(".")) {
+            fileExt = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
+        }
+        return base + fileExt;
+    }
+
+    @ApiOperation(value = "获取资源下载文件名", notes = "用于前端下载时设置正确文件名")
+    @GetMapping("/downloadFilename/{id}")
+    public AjaxResult getDownloadFilename(@PathVariable("id") Long id) {
+        try {
+            ResourceSharing resource = resourceSharingService.selectResourceSharingById(id);
+            if (resource == null || resource.getFilePath() == null) {
+                return AjaxResult.error("资源不存在");
+            }
+            File file = new File(resource.getFilePath());
+            if (!file.exists()) {
+                return AjaxResult.error("文件不存在");
+            }
+            String filename = buildDownloadFilename(resource, file);
+            return AjaxResult.success("ok", filename);
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
     @ApiOperation(value = "下载资源文件", notes = "下载资源文件")
     @GetMapping("/download/{id}")
     public ResponseEntity<Resource> downloadResource(@PathVariable("id") Long id) {
@@ -200,19 +240,25 @@ public class ResourceSharingController extends BaseController {
                 return ResponseEntity.notFound().build();
             }
             
-            // 注意：下载次数由前端调用 incrementDownload 接口单独处理，这里不再增加
-            // 这样可以避免重复增加下载次数
-            
             Resource fileResource = new FileSystemResource(file);
             String contentType = Files.probeContentType(file.toPath());
             if (contentType == null) {
                 contentType = "application/octet-stream";
             }
             
+            String filename = buildDownloadFilename(resource, file);
+            String encodedFilename;
+            try {
+                encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.name()).replace("+", "%20");
+            } catch (UnsupportedEncodingException e) {
+                encodedFilename = file.getName() != null ? file.getName() : "resource";
+            }
+            
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, 
-                            "attachment; filename=\"" + resource.getResourceName() + "\"")
+                    .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + filename.replace("\"", "\\\"") + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(fileResource);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();

@@ -63,6 +63,30 @@ public class VideosController extends BaseController {
     private String uploadPath;
     
     /**
+     * 检查用户是否有删除权限（仅管理员）
+     */
+    private boolean canDelete(HttpServletRequest request) {
+        try {
+            String auth = request.getHeader("Authorization");
+            if (auth == null || auth.trim().isEmpty()) return false;
+            String token = auth.startsWith("Bearer ") ? auth.substring("Bearer ".length()).trim() : auth.trim();
+            String username = loginService.parseUsernameFromToken(token);
+            if (username == null || username.trim().isEmpty()) return false;
+
+            LoginDiscussionForum user = loginService.getUserInfo(username);
+            if (user != null && user.getUserType() != null && user.getUserType() == 1) return true;
+
+            if (studentsService != null) {
+                Students s = studentsService.selectStudentsByPhone(username);
+                return s != null && s.getUserType() != null && s.getUserType() == 3;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
      * 检查用户是否有上传权限（讲师或管理员）
      */
     private boolean canUpload(HttpServletRequest request) {
@@ -292,12 +316,12 @@ public class VideosController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "删除视频", notes = "删除视频")
+    @ApiOperation(value = "删除视频", notes = "删除视频，仅管理员可操作")
     @DeleteMapping("/remove")
     public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
-        // 检查权限
-        if (!canUpload(request)) {
-            return AjaxResult.error("无权限删除视频，仅讲师和管理员可以删除");
+        // 检查权限：仅管理员可删除
+        if (!canDelete(request)) {
+            return AjaxResult.error("无权限删除视频，仅管理员可以删除");
         }
         
         try {
