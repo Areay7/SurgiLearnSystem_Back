@@ -85,14 +85,19 @@ public class ExamResultController extends BaseController {
         return pageTable(pageInfo.getList(), pageInfo.getTotal());
     }
 
-    @ApiOperation(value = "获取考试结果", notes = "需 exam:records 权限")
+    @ApiOperation(value = "获取考试结果", notes = "需 exam:records 或 exam:take（仅本人）")
     @GetMapping("/getByExamAndStudent")
     public AjaxResult getExamResultByExamAndStudent(
             @RequestParam Long examId,
             @RequestParam String studentId,
             HttpServletRequest request) {
-        if (permissionHelper != null && !permissionHelper.hasPermission(request, "exam:records")) {
-            return AjaxResult.error(403, "无权限查看考试记录");
+        if (permissionHelper != null) {
+            boolean canRecords = permissionHelper.hasPermission(request, "exam:records");
+            boolean canTakeOwn = permissionHelper.hasPermission(request, "exam:take")
+                    && studentId != null && studentId.trim().equals(permissionHelper.parseUserPhone(request));
+            if (!canRecords && !canTakeOwn) {
+                return AjaxResult.error(403, "无权限查看考试记录");
+            }
         }
         try {
             ExamResult result = examResultService.selectExamResultByExamIdAndStudentId(examId, studentId);
@@ -152,7 +157,8 @@ public class ExamResultController extends BaseController {
             if (examResult.getId() == null) {
                 return AjaxResult.error("考试记录ID不能为空");
             }
-            return AjaxResult.success(examResultService.updateExamResult(examResult));
+            return AjaxResult.success(examResultService.updateAnswersOnly(examResult.getId(),
+                    examResult.getAnswers() != null ? examResult.getAnswers() : "{}"));
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
         }
@@ -168,18 +174,30 @@ public class ExamResultController extends BaseController {
             if (examResult.getId() == null) {
                 return AjaxResult.error("考试记录ID不能为空");
             }
-            examResult.setStatus("已完成");
-            examResult.setSubmitTime(new java.util.Date());
-            // 计算用时
-            if (examResult.getStartTime() != null && examResult.getSubmitTime() != null) {
-                long diff = examResult.getSubmitTime().getTime() - examResult.getStartTime().getTime();
-                examResult.setDuration((int) (diff / (1000 * 60))); // 转换为分钟
+            // 先更新答案（确保提交时答案已保存），再获取完整记录用于计算
+            if (examResult.getAnswers() != null && !examResult.getAnswers().trim().isEmpty()) {
+                examResultService.updateAnswersOnly(examResult.getId(), examResult.getAnswers());
             }
-            // 自动阅卷：根据答案与正确答案比对计算得分
-            int obtainedScore = calculateObtainedScore(examResult);
-            examResult.setObtainedScore(obtainedScore);
-            examResultService.updateExamResult(examResult);
-            ExamResult updated = examResultService.selectExamResultById(examResult.getId());
+            ExamResult existing = examResultService.selectExamResultById(examResult.getId());
+            if (existing == null) {
+                return AjaxResult.error("考试记录不存在");
+            }
+            // 使用请求中的答案（可能最新），若请求无则用已保存的
+            String answersToUse = (examResult.getAnswers() != null && !examResult.getAnswers().trim().isEmpty())
+                    ? examResult.getAnswers() : existing.getAnswers();
+            existing.setAnswers(answersToUse);
+            existing.setStatus("已完成");
+            existing.setSubmitTime(new java.util.Date());
+            // 计算用时
+            if (existing.getStartTime() != null && existing.getSubmitTime() != null) {
+                long diff = existing.getSubmitTime().getTime() - existing.getStartTime().getTime();
+                existing.setDuration((int) (diff / (1000 * 60)));
+            }
+            // 自动阅卷
+            int obtainedScore = calculateObtainedScore(existing);
+            existing.setObtainedScore(obtainedScore);
+            examResultService.updateExamResult(existing);
+            ExamResult updated = examResultService.selectExamResultById(existing.getId());
             return AjaxResult.success(updated);
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
@@ -195,26 +213,38 @@ public class ExamResultController extends BaseController {
         if (StringUtils.isBlank(answersJson)) return 0;
 
         List<Long> questionIds = parseQuestionIds(exam.getQuestionIds());
+        if (questionIds.isEmpty()) return 0;
         Map<String, String> userAnswers = parseAnswers(answersJson);
+
+        int examTotal = exam.getTotalScore() != null ? exam.getTotalScore() : 100;
+        int scorePerQuestion = examTotal / questionIds.size();
+        int remainder = examTotal % questionIds.size();
+
         int total = 0;
+        int idx = 0;
         for (Long qid : questionIds) {
             QuestionBank q = questionBankService.getById(qid);
             if (q == null) continue;
             String correct = q.getCorrectAnswer();
             String user = userAnswers.get(String.valueOf(qid));
-            if (user == null) continue;
+            if (user == null || StringUtils.isBlank(user)) continue;
             if (isAnswerCorrect(q.getQuestionType(), correct, user)) {
-                total += (q.getScore() != null ? q.getScore() : 0);
+                int pts = (q.getScore() != null && q.getScore() > 0) ? q.getScore()
+                        : (scorePerQuestion + (idx < remainder ? 1 : 0));
+                total += pts;
             }
+            idx++;
         }
         return total;
     }
 
     private List<Long> parseQuestionIds(String questionIdsJson) {
+        if (questionIdsJson == null || questionIdsJson.trim().isEmpty()) return Collections.emptyList();
         try {
-            if (questionIdsJson.startsWith("[")) {
+            String trimmed = questionIdsJson.trim();
+            if (trimmed.startsWith("[")) {
                 com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-                List<?> list = om.readValue(questionIdsJson, List.class);
+                List<?> list = om.readValue(trimmed, List.class);
                 List<Long> ids = new ArrayList<>();
                 for (Object o : list) {
                     if (o instanceof Number) ids.add(((Number) o).longValue());
@@ -222,7 +252,16 @@ public class ExamResultController extends BaseController {
                 }
                 return ids;
             }
-            return Collections.emptyList();
+            // 兼容逗号分隔格式 "1,2,3"
+            String[] parts = trimmed.split(",");
+            List<Long> ids = new ArrayList<>();
+            for (String p : parts) {
+                String s = p.trim();
+                if (!s.isEmpty()) {
+                    try { ids.add(Long.parseLong(s)); } catch (NumberFormatException ignored) {}
+                }
+            }
+            return ids;
         } catch (Exception e) {
             return Collections.emptyList();
         }

@@ -15,6 +15,7 @@ public interface IExamResultService extends IService<ExamResult> {
     ExamResult selectExamResultByExamIdAndStudentId(Long examId, String studentId);
     int insertExamResult(ExamResult examResult);
     int updateExamResult(ExamResult examResult);
+    int updateAnswersOnly(Long id, String answers);
     int deleteExamResultByIds(String ids);
     int deleteExamResultById(Long id);
 }

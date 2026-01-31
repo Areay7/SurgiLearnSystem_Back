@@ -1,6 +1,7 @@
 package com.discussio.resourc.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.discussio.resourc.common.support.ConvertUtil;
@@ -77,6 +78,16 @@ public class ExamResultServiceImpl extends ServiceImpl<ExamResultMapper, ExamRes
         
         examResult.setUpdateTime(new Date());
         return this.baseMapper.updateById(examResult);
+    }
+
+    @Override
+    public int updateAnswersOnly(Long id, String answers) {
+        if (id == null || answers == null) return 0;
+        UpdateWrapper<ExamResult> uw = new UpdateWrapper<>();
+        uw.eq("id", id);
+        uw.set("answers", answers);
+        uw.set("update_time", new Date());
+        return this.baseMapper.update(null, uw);
     }
 
     @Override
