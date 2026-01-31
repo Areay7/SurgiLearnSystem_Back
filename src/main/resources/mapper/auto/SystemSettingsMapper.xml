@@ -5,6 +5,11 @@
     <resultMap id="BaseResultMap" type="com.discussio.resourc.model.auto.SystemSettings">
         <id column="id" jdbcType="BIGINT" property="id" />
         <result column="settings_id" jdbcType="BIGINT" property="settingsId" />
+        <result column="system_name" jdbcType="VARCHAR" property="systemName" />
+        <result column="page_size" jdbcType="INTEGER" property="pageSize" />
+        <result column="system_logo" jdbcType="VARCHAR" property="systemLogo" />
+        <result column="password_min_length" jdbcType="INTEGER" property="passwordMinLength" />
+        <result column="login_lock_count" jdbcType="INTEGER" property="loginLockCount" />
         <result column="course_type" jdbcType="VARCHAR" property="courseType" />
         <result column="learning_mode" jdbcType="VARCHAR" property="learningMode" />
         <result column="exam_time_limit" jdbcType="VARCHAR" property="examTimeLimit" />

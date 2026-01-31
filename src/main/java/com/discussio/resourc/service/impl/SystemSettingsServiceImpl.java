@@ -1,5 +1,6 @@
 package com.discussio.resourc.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.discussio.resourc.common.support.ConvertUtil;
 import com.discussio.resourc.mapper.auto.SystemSettingsMapper;
@@ -19,6 +20,47 @@ public class SystemSettingsServiceImpl extends ServiceImpl<SystemSettingsMapper,
         implements ISystemSettingsService {
     
     private static final Logger logger = LoggerFactory.getLogger(SystemSettingsServiceImpl.class);
+    private static final Long CONFIG_ID = 1L;
+
+    @Override
+    public SystemSettings getOrCreateConfig() {
+        SystemSettings cfg = this.getById(CONFIG_ID);
+        if (cfg == null) {
+            cfg = new SystemSettings();
+            cfg.setId(CONFIG_ID);
+            cfg.setSystemName("外科护理主管护师培训学习系统");
+            cfg.setPageSize(10);
+            cfg.setPasswordMinLength(8);
+            cfg.setLoginLockCount(5);
+            cfg.setCourseType("default");
+            this.save(cfg);
+        }
+        if (cfg.getSystemName() == null) cfg.setSystemName("外科护理主管护师培训学习系统");
+        if (cfg.getPageSize() == null) cfg.setPageSize(10);
+        if (cfg.getPasswordMinLength() == null) cfg.setPasswordMinLength(8);
+        if (cfg.getLoginLockCount() == null) cfg.setLoginLockCount(5);
+        return cfg;
+    }
+
+    @Override
+    public int saveConfig(SystemSettings config) {
+        if (config == null) return 0;
+        SystemSettings existing = getOrCreateConfig();
+        if (config.getSystemName() != null) existing.setSystemName(config.getSystemName());
+        if (config.getPageSize() != null) existing.setPageSize(config.getPageSize());
+        if (config.getSystemLogo() != null) existing.setSystemLogo(config.getSystemLogo());
+        if (config.getPasswordMinLength() != null) existing.setPasswordMinLength(config.getPasswordMinLength());
+        if (config.getLoginLockCount() != null) existing.setLoginLockCount(config.getLoginLockCount());
+        return this.updateById(existing) ? 1 : 0;
+    }
+
+    @Override
+    public int updateLogoPath(String relativePath) {
+        UpdateWrapper<SystemSettings> uw = new UpdateWrapper<>();
+        uw.eq("id", CONFIG_ID);
+        uw.set("system_logo", relativePath);
+        return this.baseMapper.update(null, uw);
+    }
 
     @Override
     public SystemSettings selectSystemSettingsById(Long id) {

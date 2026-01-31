@@ -14,6 +14,11 @@ public class SystemSettings {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long settingsId;
+    private String systemName;
+    private Integer pageSize;
+    private String systemLogo;
+    private Integer passwordMinLength;
+    private Integer loginLockCount;
     private String courseType;
     private String learningMode;
     private String examTimeLimit;

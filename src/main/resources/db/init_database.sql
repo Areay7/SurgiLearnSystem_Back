@@ -140,6 +140,11 @@ CREATE TABLE IF NOT EXISTS `mobile_access` (
 CREATE TABLE IF NOT EXISTS `system_settings` (
   `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
   `settings_id` BIGINT(20) DEFAULT NULL COMMENT '设置ID',
+  `system_name` VARCHAR(200) DEFAULT '外科护理主管护师培训学习系统' COMMENT '系统名称',
+  `page_size` INT DEFAULT 10 COMMENT '每页显示数量',
+  `system_logo` VARCHAR(500) DEFAULT NULL COMMENT '系统Logo路径',
+  `password_min_length` INT DEFAULT 8 COMMENT '密码最小长度',
+  `login_lock_count` INT DEFAULT 5 COMMENT '登录失败锁定次数',
   `course_type` VARCHAR(100) DEFAULT NULL COMMENT '课程类型',
   `learning_mode` VARCHAR(100) DEFAULT NULL COMMENT '学习模式',
   `exam_time_limit` VARCHAR(100) DEFAULT NULL COMMENT '考试时限',
