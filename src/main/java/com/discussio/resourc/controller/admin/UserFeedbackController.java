@@ -41,6 +41,10 @@ public class UserFeedbackController extends BaseController {
         return permissionHelper == null || permissionHelper.hasPermission(request, "feedback:submit");
     }
 
+    private boolean hasManagePermission(HttpServletRequest request) {
+        return permissionHelper == null || permissionHelper.hasPermission(request, "feedback:manage");
+    }
+
     @ApiOperation(value = "反馈列表", notes = "需 feedback:view；管理员看全部，学员看自己的")
     @GetMapping("/list")
     public ResultTable list(
@@ -104,7 +108,7 @@ public class UserFeedbackController extends BaseController {
     @ApiOperation(value = "更新状态/回复", notes = "需 feedback:view")
     @PostMapping("/update")
     public AjaxResult update(@RequestBody UserFeedback feedback, HttpServletRequest request) {
-        if (!hasViewPermission(request)) return AjaxResult.error(403, "无权限");
+        if (!hasManagePermission(request)) return AjaxResult.error(403, "无权限");
         if (feedback.getId() == null) return AjaxResult.error("ID不能为空");
         UserFeedback existing = userFeedbackService.getById(feedback.getId());
         if (existing == null) return AjaxResult.error("记录不存在");
@@ -119,7 +123,7 @@ public class UserFeedbackController extends BaseController {
     @ApiOperation(value = "删除反馈", notes = "需 feedback:view")
     @DeleteMapping("/remove/{id}")
     public AjaxResult remove(@PathVariable Long id, HttpServletRequest request) {
-        if (!hasViewPermission(request)) return AjaxResult.error(403, "无权限");
+        if (!hasManagePermission(request)) return AjaxResult.error(403, "无权限");
         return toAjax(userFeedbackService.removeById(id) ? 1 : 0);
     }
 }

@@ -55,8 +55,9 @@ INSERT IGNORE INTO `permission_def` (`permission_code`, `permission_name`, `modu
 ('forum:post', '论坛-发帖', '交流互动', '发帖与回复', 91),
 ('forum:manage', '论坛-管理', '交流互动', '管理帖子（置顶/锁定）', 92),
 -- 反馈
-('feedback:view', '反馈-查看', '交流互动', '查看反馈', 93),
+('feedback:view', '反馈-查看', '交流互动', '查看反馈列表与详情', 93),
 ('feedback:submit', '反馈-提交', '交流互动', '提交反馈', 94),
+('feedback:manage', '反馈-管理', '交流互动', '回复、更新状态、删除反馈', 95),
 -- 证书
 ('certificate:view', '证书-查看', '证书管理', '查看我的证书', 100),
 ('certificate:issue', '证书-颁发', '证书管理', '颁发证书', 101),
@@ -93,7 +94,7 @@ WHERE r.role_code = 'instructor' AND p.permission_code IN (
 'resource:view','resource:upload','resource:download',
 'class:view','class:students','class:instructors',
 'schedule:view','schedule:create','schedule:edit','schedule:delete',
-'forum:view','forum:post','feedback:view','feedback:submit',
+'forum:view','forum:post','feedback:view','feedback:submit','feedback:manage',
 'certificate:view','progress:view');
 
 -- 学员权限

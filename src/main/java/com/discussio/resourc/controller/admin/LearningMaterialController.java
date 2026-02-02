@@ -32,7 +32,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Api(value = "学习资料管理")
 @RestController
@@ -56,6 +58,9 @@ public class LearningMaterialController extends BaseController {
 
     @Autowired(required = false)
     private com.discussio.resourc.common.support.PermissionHelper permissionHelper;
+
+    private static final Map<String, Object[]> PREVIEW_TOKEN_CACHE = new ConcurrentHashMap<>();
+    private static final long PREVIEW_TOKEN_EXPIRE_MS = 600000; // 10分钟有效
 
     // 支持的后缀
     private static final String[] ALLOWED_EXT = new String[]{
@@ -316,10 +321,45 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "预览资料文件", notes = "需 material:view 权限")
-    @GetMapping("/preview/{id}")
-    public ResponseEntity<Resource> preview(@PathVariable("id") Long id, HttpServletRequest request) {
+    @ApiOperation(value = "获取预览地址（带临时token，用于 img/video/iframe，避免鉴权与CORS）")
+    @GetMapping("/previewUrl/{id}")
+    public AjaxResult getPreviewUrl(@PathVariable("id") Long id, HttpServletRequest request) {
         if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:view")) {
+            return AjaxResult.error(403, "无权限预览");
+        }
+        LearningMaterial material = materialService.selectLearningMaterialById(id);
+        if (material == null || material.getFilePath() == null) {
+            return AjaxResult.error("资料不存在");
+        }
+        File file = resolveFile(material.getFilePath());
+        if (file == null || !file.exists()) {
+            return AjaxResult.error("文件不存在");
+        }
+        String token = UUID.randomUUID().toString();
+        long expireAt = System.currentTimeMillis() + PREVIEW_TOKEN_EXPIRE_MS;
+        PREVIEW_TOKEN_CACHE.put(token, new Object[]{id, Long.valueOf(expireAt)});
+        String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort() + request.getContextPath();
+        String url = baseUrl + "/LearningMaterialController/preview/" + id + "?token=" + token;
+        return AjaxResult.success("ok", url);
+    }
+
+    @ApiOperation(value = "预览资料文件（支持 Bearer 或 token 参数）")
+    @GetMapping("/preview/{id}")
+    public ResponseEntity<Resource> preview(
+            @PathVariable("id") Long id,
+            @RequestParam(required = false) String token,
+            HttpServletRequest request) {
+        boolean allowed = false;
+        if (token != null && !token.trim().isEmpty()) {
+            Object[] cached = PREVIEW_TOKEN_CACHE.get(token.trim());
+            if (cached != null) {
+                Long expireAt = (Long) cached[1];
+                if (System.currentTimeMillis() < expireAt.longValue() && id.equals(cached[0])) {
+                    allowed = true;
+                }
+            }
+        }
+        if (!allowed && (permissionHelper != null && !permissionHelper.hasPermission(request, "material:view"))) {
             return ResponseEntity.status(403).build();
         }
         try {
