@@ -44,6 +44,12 @@
             <artifactId>mybatis-plus-boot-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
+        <!-- 显式引入 core，避免部分环境缺失 mapper 包 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-core</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
 
         <!-- MySQL Driver -->
         <dependency>

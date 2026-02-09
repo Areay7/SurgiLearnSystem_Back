@@ -61,6 +61,8 @@ public class LearningMaterialController extends BaseController {
 
     private static final Map<String, Object[]> PREVIEW_TOKEN_CACHE = new ConcurrentHashMap<>();
     private static final long PREVIEW_TOKEN_EXPIRE_MS = 600000; // 10分钟有效
+    private static final Map<String, Object[]> DOWNLOAD_TOKEN_CACHE = new ConcurrentHashMap<>();
+    private static final long DOWNLOAD_TOKEN_EXPIRE_MS = 120000; // 2分钟有效
 
     // 支持的后缀
     private static final String[] ALLOWED_EXT = new String[]{
@@ -285,10 +287,45 @@ public class LearningMaterialController extends BaseController {
         }
     }
 
-    @ApiOperation(value = "下载资料文件", notes = "需 material:download 权限")
-    @GetMapping("/download/{id}")
-    public ResponseEntity<Resource> download(@PathVariable("id") Long id, HttpServletRequest request) {
+    @ApiOperation(value = "获取下载地址（带临时token，用于导航下载，避免鉴权与CORS）")
+    @GetMapping("/downloadUrl/{id}")
+    public AjaxResult getDownloadUrl(@PathVariable("id") Long id, HttpServletRequest request) {
         if (permissionHelper != null && !permissionHelper.hasPermission(request, "material:download")) {
+            return AjaxResult.error(403, "无权限下载");
+        }
+        LearningMaterial material = materialService.selectLearningMaterialById(id);
+        if (material == null || material.getFilePath() == null) {
+            return AjaxResult.error("资料不存在");
+        }
+        File file = resolveFile(material.getFilePath());
+        if (file == null || !file.exists()) {
+            return AjaxResult.error("文件不存在");
+        }
+        String token = UUID.randomUUID().toString();
+        long expireAt = System.currentTimeMillis() + DOWNLOAD_TOKEN_EXPIRE_MS;
+        DOWNLOAD_TOKEN_CACHE.put(token, new Object[]{id, Long.valueOf(expireAt)});
+        String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort() + request.getContextPath();
+        String url = baseUrl + "/LearningMaterialController/download/" + id + "?token=" + token;
+        return AjaxResult.success("ok", url);
+    }
+
+    @ApiOperation(value = "下载资料文件（支持 Bearer 或 token 参数）")
+    @GetMapping("/download/{id}")
+    public ResponseEntity<Resource> download(
+            @PathVariable("id") Long id,
+            @RequestParam(required = false) String token,
+            HttpServletRequest request) {
+        boolean allowed = false;
+        if (token != null && !token.trim().isEmpty()) {
+            Object[] cached = DOWNLOAD_TOKEN_CACHE.remove(token.trim());
+            if (cached != null) {
+                Long expireAt = (Long) cached[1];
+                if (System.currentTimeMillis() < expireAt.longValue() && id.equals(cached[0])) {
+                    allowed = true;
+                }
+            }
+        }
+        if (!allowed && (permissionHelper != null && !permissionHelper.hasPermission(request, "material:download"))) {
             return ResponseEntity.status(403).build();
         }
         try {
