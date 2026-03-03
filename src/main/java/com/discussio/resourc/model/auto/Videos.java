@@ -19,6 +19,7 @@ public class Videos {
     private String videoTitle;
     private String videoUrl;
     private String videoType;
+    private String category;
     private String description;
     private String instructorId;
     private String instructorName;

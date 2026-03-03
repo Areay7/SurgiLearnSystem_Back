@@ -14,6 +14,7 @@
         <result column="instructor_name" jdbcType="VARCHAR" property="instructorName" />
         <result column="max_participants" jdbcType="INTEGER" property="maxParticipants" />
         <result column="current_participants" jdbcType="INTEGER" property="currentParticipants" />
+        <result column="required" jdbcType="INTEGER" property="required" />
         <result column="status" jdbcType="VARCHAR" property="status" />
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
         <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
@@ -34,6 +35,9 @@
         </if>
         <if test="status != null and status != ''">
             AND t.status = #{status}
+        </if>
+        <if test="required != null">
+            AND t.required = #{required}
         </if>
         AND (
             NOT EXISTS (SELECT 1 FROM training_class tc WHERE tc.training_id = t.id)

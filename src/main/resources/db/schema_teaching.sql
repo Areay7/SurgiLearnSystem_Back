@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `video_title` VARCHAR(200) DEFAULT NULL,
   `video_url` VARCHAR(500) DEFAULT NULL,
   `video_type` VARCHAR(100) DEFAULT NULL,
+  `category` VARCHAR(100) DEFAULT NULL,
   `description` TEXT,
   `instructor_id` VARCHAR(100) DEFAULT NULL,
   `instructor_name` VARCHAR(100) DEFAULT NULL,

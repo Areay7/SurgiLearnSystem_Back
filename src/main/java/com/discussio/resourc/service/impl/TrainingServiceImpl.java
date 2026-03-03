@@ -82,8 +82,8 @@ public class TrainingServiceImpl extends ServiceImpl<TrainingMapper, Training> i
     }
 
     @Override
-    public List<Training> selectTrainingListForStudent(Long studentId, String searchText, String trainingType, String status) {
-        return this.baseMapper.selectTrainingListForStudent(studentId, searchText, trainingType, status);
+    public List<Training> selectTrainingListForStudent(Long studentId, String searchText, String trainingType, String status, Integer required) {
+        return this.baseMapper.selectTrainingListForStudent(studentId, searchText, trainingType, status, required);
     }
 
     @Override
@@ -112,7 +112,7 @@ public class TrainingServiceImpl extends ServiceImpl<TrainingMapper, Training> i
     public boolean canStudentAccessTraining(Long trainingId, Long studentId) {
         List<Long> classIds = getTrainingClassIds(trainingId);
         if (classIds == null || classIds.isEmpty()) return true;
-        List<Training> allowed = baseMapper.selectTrainingListForStudent(studentId, null, null, null);
+        List<Training> allowed = baseMapper.selectTrainingListForStudent(studentId, null, null, null, null);
         return allowed.stream().anyMatch(t -> trainingId.equals(t.getId()));
     }
 }

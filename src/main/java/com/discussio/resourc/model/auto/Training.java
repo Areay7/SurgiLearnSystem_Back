@@ -34,6 +34,8 @@ public class Training {
     private String instructorName;
     private Integer maxParticipants;
     private Integer currentParticipants;
+    /** 是否必修；1=必修，0/空=选修 */
+    private Integer required;
     private String status;
     private Date createTime;
     private Date updateTime;

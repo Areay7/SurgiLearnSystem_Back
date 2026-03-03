@@ -419,6 +419,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `video_title` VARCHAR(200) DEFAULT NULL COMMENT '视频标题',
   `video_url` VARCHAR(500) DEFAULT NULL COMMENT '视频URL',
   `video_type` VARCHAR(100) DEFAULT NULL COMMENT '视频类型',
+  `category` VARCHAR(100) DEFAULT NULL COMMENT '视频分类',
   `description` TEXT COMMENT '描述',
   `instructor_id` VARCHAR(100) DEFAULT NULL COMMENT '讲师ID',
   `instructor_name` VARCHAR(100) DEFAULT NULL COMMENT '讲师姓名',
@@ -432,6 +433,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
   `update_time` DATETIME DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_video_type` (`video_type`),
+  KEY `idx_category` (`category`),
   KEY `idx_publish_time` (`publish_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='视频讲座播放表';
 

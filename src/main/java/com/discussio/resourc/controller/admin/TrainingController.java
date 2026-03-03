@@ -62,6 +62,7 @@ public class TrainingController extends BaseController {
                             @RequestParam(required = false) String searchText,
                             @RequestParam(required = false) String trainingType,
                             @RequestParam(required = false) String status,
+                            @RequestParam(required = false) Integer required,
                             HttpServletRequest request) {
         if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:view")) {
             return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看培训", 0, java.util.Collections.emptyList());
@@ -70,17 +71,21 @@ public class TrainingController extends BaseController {
         PageHelper.startPage(page != null ? page : 1, limit != null ? limit : 10);
         List<Training> list;
         if (role.student != null && !role.isAdmin && !role.isInstructor) {
-            list = trainingService.selectTrainingListForStudent(role.student.getId(), searchText, trainingType, status);
+            list = trainingService.selectTrainingListForStudent(role.student.getId(), searchText, trainingType, status, required);
         } else {
             QueryWrapper<Training> qw = new QueryWrapper<>();
             if (StringUtils.isNotBlank(searchText)) {
                 qw.and(w -> w.like("training_name", searchText).or().like("description", searchText));
             }
             if (StringUtils.isNotBlank(trainingType)) {
-                qw.eq("training_type", trainingType.trim());
+                // allow partial match for training type
+                qw.like("training_type", trainingType.trim());
             }
             if (StringUtils.isNotBlank(status)) {
                 qw.eq("status", status.trim());
+            }
+            if (required != null) {
+                qw.eq("required", required);
             }
             qw.orderByDesc("update_time");
             list = trainingService.selectTrainingList(qw);
@@ -103,7 +108,7 @@ public class TrainingController extends BaseController {
         UserRole role = resolveUserRole(request);
         if (role.student != null && !role.isAdmin && !role.isInstructor) {
             if (!classIds.isEmpty()) {
-                List<Long> visible = trainingService.selectTrainingListForStudent(role.student.getId(), null, null, null)
+                List<Long> visible = trainingService.selectTrainingListForStudent(role.student.getId(), null, null, null, null)
                     .stream().map(Training::getId).collect(Collectors.toList());
                 if (!visible.contains(id)) {
                     return AjaxResult.error(403, "您不在该培训的指定班级中，无法查看");
@@ -139,6 +144,12 @@ public class TrainingController extends BaseController {
 
             if (training.getCreateTime() == null) training.setCreateTime(new Date());
             if (training.getUpdateTime() == null) training.setUpdateTime(new Date());
+            // normalize new fields
+            if (training.getMaxParticipants() != null && training.getMaxParticipants() < 0) {
+                training.setMaxParticipants(null);
+            }
+            if (training.getRequired() == null) training.setRequired(0);
+            else training.setRequired(training.getRequired() == 1 ? 1 : 0);
             int n = trainingService.insertTraining(training);
             if (n > 0 && training.getId() != null && training.getClassIds() != null) {
                 trainingService.setTrainingClassIds(training.getId(), training.getClassIds());
@@ -158,6 +169,11 @@ public class TrainingController extends BaseController {
                 return AjaxResult.error(403, "无权限操作（需要培训编辑权限）");
             }
             UserRole role = resolveUserRole(request);
+            if (training.getMaxParticipants() != null && training.getMaxParticipants() < 0) {
+                training.setMaxParticipants(null);
+            }
+            if (training.getRequired() == null) training.setRequired(0);
+            else training.setRequired(training.getRequired() == 1 ? 1 : 0);
             int n = trainingService.updateTraining(training);
             if (n > 0 && training.getId() != null) {
                 trainingService.setTrainingClassIds(training.getId(), training.getClassIds());

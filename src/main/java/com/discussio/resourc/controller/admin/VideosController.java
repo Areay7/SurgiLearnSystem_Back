@@ -131,6 +131,7 @@ public class VideosController extends BaseController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String videoType,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) String searchText,
             HttpServletRequest request) {
         if (!canView(request)) {
@@ -143,6 +144,9 @@ public class VideosController extends BaseController {
         
         if (videoType != null && !videoType.trim().isEmpty() && !"全部专题".equals(videoType)) {
             queryWrapper.eq("video_type", videoType);
+        }
+        if (category != null && !category.trim().isEmpty() && !"全部分类".equals(category)) {
+            queryWrapper.eq("category", category);
         }
         
         if (searchText != null && !searchText.trim().isEmpty()) {
@@ -175,6 +179,7 @@ public class VideosController extends BaseController {
             map.put("videoTitle", video.getVideoTitle());
             map.put("videoUrl", video.getVideoUrl());
             map.put("videoType", video.getVideoType());
+            map.put("category", video.getCategory());
             map.put("description", video.getDescription());
             map.put("instructorId", video.getInstructorId());
             map.put("instructorName", video.getInstructorName());
@@ -221,6 +226,7 @@ public class VideosController extends BaseController {
         result.put("videoTitle", video.getVideoTitle());
         result.put("videoUrl", video.getVideoUrl());
         result.put("videoType", video.getVideoType());
+        result.put("category", video.getCategory());
         result.put("description", video.getDescription());
         result.put("instructorId", video.getInstructorId());
         result.put("instructorName", video.getInstructorName());
@@ -243,6 +249,7 @@ public class VideosController extends BaseController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("videoTitle") String videoTitle,
             @RequestParam("videoType") String videoType,
+            @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("instructorId") String instructorId,
             @RequestParam("instructorName") String instructorName,
@@ -295,6 +302,7 @@ public class VideosController extends BaseController {
             video.setVideoTitle(videoTitle);
             video.setVideoUrl("/uploads/videos/" + uniqueFileName);
             video.setVideoType(videoType);
+            video.setCategory(category);
             video.setDescription(description);
             video.setInstructorId(instructorId);
             video.setInstructorName(instructorName);

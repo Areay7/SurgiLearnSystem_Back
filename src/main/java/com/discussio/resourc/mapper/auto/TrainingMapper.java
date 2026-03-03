@@ -18,6 +18,7 @@ public interface TrainingMapper extends BaseMapper<Training> {
     List<Training> selectTrainingListForStudent(@Param("studentId") Long studentId,
                                                  @Param("searchText") String searchText,
                                                  @Param("trainingType") String trainingType,
-                                                 @Param("status") String status);
+                                                 @Param("status") String status,
+                                                 @Param("required") Integer required);
 }
 

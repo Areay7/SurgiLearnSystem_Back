@@ -15,7 +15,7 @@ public interface ITrainingService extends IService<Training> {
 
     List<Training> selectTrainingList(Wrapper<Training> queryWrapper);
 
-    List<Training> selectTrainingListForStudent(Long studentId, String searchText, String trainingType, String status);
+    List<Training> selectTrainingListForStudent(Long studentId, String searchText, String trainingType, String status, Integer required);
 
     int insertTraining(Training training);
 
