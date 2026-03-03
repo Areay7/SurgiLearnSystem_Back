@@ -158,7 +158,7 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
     }
 
     @Override
-    public boolean registerUser(String username, String password) {
+    public boolean registerUser(String username, String password, String nickname, String employeeId) {
         try {
             // 验证输入
             if (username == null || username.trim().isEmpty()) {
@@ -170,28 +170,29 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
             if (password.length() < 6) {
                 throw new RuntimeException("密码长度至少6位");
             }
-            
+
             // 用户名是否已存在
             LoginDiscussionForum existingUser = loginDiscussionForumMapper.findByPaymentschedulename(username);
             if (existingUser != null) {
                 logger.warn("注册失败：用户名已存在 - {}", username);
                 return false; // 用户名已存在
             }
-            
+
             // 创建新用户并保存
             LoginDiscussionForum newUser = new LoginDiscussionForum();
             newUser.setUsername(username.trim());
             newUser.setPassword(encryptSHA1(password));
+            newUser.setNickname(nickname != null ? nickname.trim() : null);
             // 默认普通用户；如果这是系统第一个用户，则设置为管理员（方便初始化）
             long userCount = this.count();
             Integer userType = userCount == 0 ? 1 : 0; // 1=管理员, 0=普通用户
             newUser.setUserType(userType);
             boolean saved = this.save(newUser);
-            
+
             if (saved) {
                 passwordChangeDates.put(username, LocalDate.now());
                 logger.info("用户注册成功 - {}", username);
-                
+
                 // 自动创建对应的 students 记录
                 if (studentsService != null) {
                     try {
@@ -200,10 +201,13 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
                             // 创建新的 students 记录
                             Students newStudent = new Students();
                             newStudent.setPhone(username.trim());
-                            newStudent.setStudentName("待完善"); // insertStudents 要求姓名非空
+                            // 使用注册时填写的用户名作为姓名，若为空则用占位符
+                            String studentName = (nickname != null && !nickname.trim().isEmpty()) ? nickname.trim() : "待完善";
+                            newStudent.setStudentName(studentName);
+                            if (employeeId != null && !employeeId.trim().isEmpty()) {
+                                newStudent.setEmployeeId(employeeId.trim());
+                            }
                             // 映射 userType: 0=普通用户(学员) -> 1, 1=管理员 -> 3
-                            // 但注册时默认是普通用户，所以设为学员(1)
-                            // 如果是第一个用户(管理员)，设为管理员(3)
                             newStudent.setUserType(userType == 1 ? 3 : 1); // 1=学员, 3=管理员
                             newStudent.setStatus("正常");
                             newStudent.setCreateTime(new Date());
@@ -216,7 +220,7 @@ public class LoginDiscussionForumServiceImpl extends ServiceImpl<LoginDiscussion
                         // 不影响注册流程，只记录警告
                     }
                 }
-                
+
                 return true;
             } else {
                 logger.error("用户注册失败 - 保存失败");

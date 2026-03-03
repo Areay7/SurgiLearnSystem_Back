@@ -105,25 +105,59 @@ public class UserFeedbackController extends BaseController {
         return AjaxResult.success(f);
     }
 
-    @ApiOperation(value = "更新状态/回复", notes = "需 feedback:view")
+    @ApiOperation(value = "更新/编辑反馈", notes = "管理员可修改状态/回复/内容，提交人可编辑自己的未处理反馈")
     @PostMapping("/update")
     public AjaxResult update(@RequestBody UserFeedback feedback, HttpServletRequest request) {
-        if (!hasManagePermission(request)) return AjaxResult.error(403, "无权限");
         if (feedback.getId() == null) return AjaxResult.error("ID不能为空");
         UserFeedback existing = userFeedbackService.getById(feedback.getId());
         if (existing == null) return AjaxResult.error("记录不存在");
-        if (feedback.getStatus() != null) existing.setStatus(feedback.getStatus());
-        if (feedback.getReplyContent() != null) {
-            existing.setReplyContent(feedback.getReplyContent());
-            existing.setReplyTime(new Date());
+
+        String phone = permissionHelper != null ? permissionHelper.parseUserPhone(request) : null;
+        boolean isManager = hasManagePermission(request);
+        boolean isOwner = phone != null && phone.equals(existing.getUserId());
+
+        if (!isManager && !isOwner) {
+            return AjaxResult.error(403, "无权限");
+        }
+
+        // managers can change anything including status, reply and other fields
+        if (isManager) {
+            if (feedback.getStatus() != null) existing.setStatus(feedback.getStatus());
+            if (feedback.getReplyContent() != null) {
+                existing.setReplyContent(feedback.getReplyContent());
+                existing.setReplyTime(new Date());
+            }
+            // allow editing of basic info
+            if (feedback.getTitle() != null) existing.setTitle(feedback.getTitle());
+            if (feedback.getContent() != null) existing.setContent(feedback.getContent());
+            if (feedback.getRating() != null) existing.setRating(Math.max(0, Math.min(5, feedback.getRating())));
+            if (feedback.getFeedbackType() != null) existing.setFeedbackType(feedback.getFeedbackType());
+            if (feedback.getRelateId() != null) existing.setRelateId(feedback.getRelateId());
+            if (feedback.getRelateName() != null) existing.setRelateName(feedback.getRelateName());
+        } else {
+            // owner editing their own feedback; only allow if not processed yet
+            if (existing.getStatus() != null && !"待处理".equals(existing.getStatus())) {
+                return AjaxResult.error("反馈已开始处理，无法修改");
+            }
+            if (feedback.getTitle() != null) existing.setTitle(feedback.getTitle());
+            if (feedback.getContent() != null) existing.setContent(feedback.getContent());
+            if (feedback.getRating() != null) existing.setRating(Math.max(0, Math.min(5, feedback.getRating())));
+            if (feedback.getFeedbackType() != null) existing.setFeedbackType(feedback.getFeedbackType());
+            if (feedback.getRelateId() != null) existing.setRelateId(feedback.getRelateId());
+            if (feedback.getRelateName() != null) existing.setRelateName(feedback.getRelateName());
         }
         return toAjax(userFeedbackService.updateById(existing) ? 1 : 0);
     }
 
-    @ApiOperation(value = "删除反馈", notes = "需 feedback:view")
+    @ApiOperation(value = "删除反馈", notes = "管理员或提交人可删除")
     @DeleteMapping("/remove/{id}")
     public AjaxResult remove(@PathVariable Long id, HttpServletRequest request) {
-        if (!hasManagePermission(request)) return AjaxResult.error(403, "无权限");
-        return toAjax(userFeedbackService.removeById(id) ? 1 : 0);
+        String phone = permissionHelper != null ? permissionHelper.parseUserPhone(request) : null;
+        UserFeedback existing = userFeedbackService.getById(id);
+        if (existing == null) return AjaxResult.error("记录不存在");
+        if (hasManagePermission(request) || (phone != null && phone.equals(existing.getUserId()))) {
+            return toAjax(userFeedbackService.removeById(id) ? 1 : 0);
+        }
+        return AjaxResult.error(403, "无权限");
     }
 }

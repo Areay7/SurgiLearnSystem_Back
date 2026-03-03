@@ -104,28 +104,15 @@ public class LoginController {
             if (request.getPassword().length() < 6) {
                 return AjaxResult.error("密码长度至少6位");
             }
-            
-            boolean success = loginService.registerUser(request.getPhone().trim(), request.getPassword());
+            if (request.getNickname() == null || request.getNickname().trim().isEmpty()) {
+                return AjaxResult.error("用户名不能为空");
+            }
+
+            String nickname = request.getNickname().trim();
+            String employeeId = request.getEmployeeId() != null ? request.getEmployeeId().trim() : null;
+
+            boolean success = loginService.registerUser(request.getPhone().trim(), request.getPassword(), nickname, employeeId);
             if (success) {
-                // 确保学员记录存在（注册用户默认为学员）
-                if (studentsService != null) {
-                    try {
-                        Students student = studentsService.selectStudentsByPhone(request.getPhone().trim());
-                        if (student == null) {
-                            Students newStudent = new Students();
-                            newStudent.setPhone(request.getPhone().trim());
-                            newStudent.setStudentName("待完善"); // 注册时无姓名，insertStudents 要求非空
-                            newStudent.setUserType(1); // 1=学员
-                            newStudent.setStatus("正常");
-                            newStudent.setCreateTime(new Date());
-                            newStudent.setUpdateTime(new Date());
-                            studentsService.insertStudents(newStudent);
-                        }
-                    } catch (Exception ex) {
-                        // 记录日志但不影响注册结果
-                        ex.printStackTrace();
-                    }
-                }
                 return AjaxResult.success("注册成功，请登录");
             } else {
                 return AjaxResult.error("用户名已存在");
@@ -379,6 +366,8 @@ public class LoginController {
     public static class RegisterRequest {
         private String phone;
         private String password;
+        private String nickname;
+        private String employeeId;
 
         public String getPhone() {
             return phone;
@@ -394,6 +383,22 @@ public class LoginController {
 
         public void setPassword(String password) {
             this.password = password;
+        }
+
+        public String getNickname() {
+            return nickname;
+        }
+
+        public void setNickname(String nickname) {
+            this.nickname = nickname;
+        }
+
+        public String getEmployeeId() {
+            return employeeId;
+        }
+
+        public void setEmployeeId(String employeeId) {
+            this.employeeId = employeeId;
         }
     }
 

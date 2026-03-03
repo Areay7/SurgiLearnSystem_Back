@@ -8,7 +8,7 @@ import com.discussio.resourc.model.auto.LoginDiscussionForum;
  */
 public interface LoginDiscussionForumService extends IService<LoginDiscussionForum> {
     boolean loginDiscussionForum(String username, String password);
-    boolean registerUser(String username, String password);
+    boolean registerUser(String username, String password, String nickname, String employeeId);
     boolean changePassword(String username, String oldPassword, String newPassword);
     /**
      * 管理员重置指定用户密码（无需旧密码）
