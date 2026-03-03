@@ -309,6 +309,101 @@ public class QuestionBankController extends BaseController {
         }
     }
 
+    @ApiOperation(value = "打印题目", notes = "需 question:view 权限，可按筛选或指定 ids 打印")
+    @GetMapping("/print")
+    public void printQuestions(
+            @RequestParam(required = false) String ids,
+            @RequestParam(required = false) String searchText,
+            @RequestParam(required = false) String questionType,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String difficulty,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "question:view")) {
+            try { response.sendError(403, "无权限打印题库"); } catch (Exception ignored) {}
+            return;
+        }
+
+        try {
+            QueryWrapper<QuestionBank> queryWrapper = new QueryWrapper<>();
+
+            if (ids != null && !ids.trim().isEmpty()) {
+                String[] parts = ids.split(",");
+                java.util.List<Long> idList = new java.util.ArrayList<>();
+                for (String p : parts) {
+                    try { idList.add(Long.parseLong(p.trim())); } catch (Exception ignored) {}
+                }
+                if (!idList.isEmpty()) queryWrapper.in("id", idList);
+            } else {
+                if (searchText != null && !searchText.trim().isEmpty()) {
+                    queryWrapper.and(wrapper -> wrapper
+                            .like("question_content", searchText.trim())
+                            .or()
+                            .like("category", searchText.trim())
+                    );
+                }
+                if (questionType != null && !questionType.trim().isEmpty()) {
+                    queryWrapper.eq("question_type", questionType.trim());
+                }
+                if (category != null && !category.trim().isEmpty()) {
+                    queryWrapper.eq("category", category.trim());
+                }
+                if (difficulty != null && !difficulty.trim().isEmpty()) {
+                    queryWrapper.eq("difficulty", difficulty.trim());
+                }
+            }
+
+            queryWrapper.orderByDesc("create_time");
+            java.util.List<QuestionBank> list = questionBankService.selectQuestionBankList(queryWrapper);
+
+            StringBuilder html = new StringBuilder();
+            html.append("<!doctype html><html><head><meta charset=\"utf-8\"><title>题目打印</title>");
+            html.append("<style>body{font-family:Arial,'Microsoft YaHei',sans-serif;padding:20px} .q{margin-bottom:18px} .q h4{margin:0 0 6px;font-size:16px} .opts{margin-left:18px} .meta{color:#666;font-size:12px;margin-top:6px}</style>");
+            html.append("</head><body>");
+
+            int idx = 1;
+            for (QuestionBank q : list) {
+                html.append("<div class=\"q\">\n");
+                html.append("<h4>" + idx + ". [" + (q.getQuestionType() == null ? "" : q.getQuestionType()) + "] " + (q.getQuestionContent() == null ? "-" : q.getQuestionContent()) + "</h4>\n");
+                if (q.getQuestionType() == null || !"判断".equals(q.getQuestionType())) {
+                    html.append("<div class=\"opts\">\n");
+                    if (q.getOptionA() != null) html.append("A. " + q.getOptionA() + "<br/>\n");
+                    if (q.getOptionB() != null) html.append("B. " + q.getOptionB() + "<br/>\n");
+                    if (q.getOptionC() != null) html.append("C. " + q.getOptionC() + "<br/>\n");
+                    if (q.getOptionD() != null) html.append("D. " + q.getOptionD() + "<br/>\n");
+                    html.append("</div>\n");
+                } else {
+                    html.append("<div class=\"opts\">\n");
+                    if (q.getOptionA() != null) html.append("A. " + q.getOptionA() + "<br/>\n");
+                    if (q.getOptionB() != null) html.append("B. " + q.getOptionB() + "<br/>\n");
+                    html.append("</div>\n");
+                }
+
+                html.append("<div class=\"meta\">答案：" + (q.getCorrectAnswer() == null ? "" : q.getCorrectAnswer())
+                        + " &nbsp; 分类：" + (q.getCategory() == null ? "-" : q.getCategory())
+                        + " &nbsp; 难度：" + (q.getDifficulty() == null ? "-" : q.getDifficulty())
+                        + " &nbsp; 分值：" + (q.getScore() == null ? 0 : q.getScore())
+                        + "</div>\n");
+
+                if (q.getExplanation() != null && !q.getExplanation().trim().isEmpty()) {
+                    html.append("<div class=\"meta\"><strong>解析：</strong> " + q.getExplanation() + "</div>\n");
+                }
+
+                html.append("</div>");
+                idx++;
+            }
+
+            html.append("</body></html>");
+
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.setContentType("text/html; charset=UTF-8");
+            response.getWriter().write(html.toString());
+            response.getWriter().flush();
+        } catch (Exception e) {
+            try { response.sendError(500, "生成打印内容失败: " + e.getMessage()); } catch (Exception ignored) {}
+        }
+    }
+
     private static String getCellString(Cell cell) {
         if (cell == null) return "";
         try {
