@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,15 +51,24 @@ public class CertificateIssueController extends BaseController {
 
     private static final String[] STAMP_ALLOWED_EXT = new String[]{".png", ".jpg", ".jpeg", ".webp"};
 
-    @ApiOperation(value = "证书颁发功能列表", notes = "需 certificate:issue 权限")
+    @ApiOperation(value = "证书颁发功能列表", notes = "需 certificate:issue 权限，支持按名称/状态过滤（有效/无效/已过期）")
     @GetMapping("/list")
-    public ResultTable CertificateIssuelist(Tablepar tablepar, HttpServletRequest request) {
+    public ResultTable CertificateIssuelist(Tablepar tablepar,
+                                            @RequestParam(required = false) String certificateStatus,
+                                            HttpServletRequest request) {
         if (permissionHelper != null && !permissionHelper.hasPermission(request, "certificate:issue")) {
             return new com.discussio.resourc.common.domain.ResultTable(403, "无权限查看证书列表", 0, java.util.Collections.emptyList());
         }
         QueryWrapper<CertificateIssue> queryWrapper = new QueryWrapper<>();
         if (tablepar != null && tablepar.getSearchText() != null && !tablepar.getSearchText().isEmpty()) {
             queryWrapper.like("holder_name", tablepar.getSearchText());
+        }
+        if (certificateStatus != null && !certificateStatus.isEmpty()) {
+            if ("已过期".equals(certificateStatus)) {
+                queryWrapper.lt("expiry_date", new Date());
+            } else {
+                queryWrapper.eq("certificate_status", certificateStatus.trim());
+            }
         }
         
         PageHelper.startPage(tablepar != null && tablepar.getPage() != null ? tablepar.getPage() : 1, 
