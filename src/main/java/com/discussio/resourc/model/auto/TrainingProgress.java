@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
  * 培训进度（按用户-培训）
@@ -24,6 +25,7 @@ public class TrainingProgress {
     private Integer completedCount;
     private Integer totalCount;
     private String status; // 学习中/已完成
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", timezone = "GMT+8")
     private Date lastStudyTime;
 
     private Date createTime;

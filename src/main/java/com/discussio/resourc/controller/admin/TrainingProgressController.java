@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * 护理培训进度（开始/上报/完成判断）
@@ -408,6 +409,45 @@ public class TrainingProgressController extends BaseController {
             }
             
             return AjaxResult.success(detail);
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "修改进度", notes = "需 training:progress 权限")
+    @PostMapping("/edit")
+    public AjaxResult edit(@RequestBody TrainingProgress progress, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:progress")) {
+            return AjaxResult.error(403, "无权限修改学习进度");
+        }
+        try {
+            if (progress.getId() == null) return AjaxResult.error("进度ID不能为空");
+            progress.setUpdateTime(new Date());
+            boolean ok = trainingProgressService.updateById(progress);
+            return toAjax(ok ? 1 : 0);
+        } catch (Exception e) {
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
+    @ApiOperation(value = "删除进度", notes = "需 training:progress 权限")
+    @DeleteMapping("/remove")
+    public AjaxResult remove(@RequestParam String ids, HttpServletRequest request) {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "training:progress")) {
+            return AjaxResult.error(403, "无权限删除学习进度");
+        }
+        try {
+            if (ids == null || ids.trim().isEmpty()) return AjaxResult.error("ids 不能为空");
+            String[] parts = ids.split(",");
+            ArrayList<Long> idList = new ArrayList<>();
+            for (String p : parts) {
+                try {
+                    if (p != null && !p.trim().isEmpty()) idList.add(Long.parseLong(p.trim()));
+                } catch (Exception ignored) {}
+            }
+            if (idList.isEmpty()) return AjaxResult.error("无效的ids");
+            boolean ok = trainingProgressService.removeByIds(idList);
+            return toAjax(ok ? 1 : 0);
         } catch (Exception e) {
             return AjaxResult.error(e.getMessage());
         }
