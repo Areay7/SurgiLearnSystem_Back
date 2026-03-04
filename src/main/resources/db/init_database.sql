@@ -487,6 +487,11 @@ CREATE TABLE IF NOT EXISTS `exam` (
   `pass_score` INT(11) DEFAULT 0 COMMENT '及格分',
   `question_ids` TEXT COMMENT '题目ID列表（JSON格式）',
   `status` VARCHAR(50) DEFAULT NULL COMMENT '状态',
+  -- 新增字段
+  `teacher` VARCHAR(100) DEFAULT NULL COMMENT '教师',
+  `attendance` INT(11) DEFAULT 0 COMMENT '出勤人数',
+  `location` VARCHAR(200) DEFAULT NULL COMMENT '教学地点',
+  `remark` TEXT COMMENT '备注（特殊情况说明）',
   `creator_id` VARCHAR(100) DEFAULT NULL COMMENT '创建者ID',
   `creator_name` VARCHAR(100) DEFAULT NULL COMMENT '创建者姓名',
   `create_time` DATETIME DEFAULT NULL COMMENT '创建时间',

@@ -32,6 +32,13 @@ public class Exam {
     private Integer passScore;
     private String questionIds;
     private String status;
+
+    // 新增字段：教师、出勤人数、教学地点、备注
+    private String teacher;
+    private Integer attendance;
+    private String location;
+    private String remark;
+
     private String creatorId;
     private String creatorName;
     

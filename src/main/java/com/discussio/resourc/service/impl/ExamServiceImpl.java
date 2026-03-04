@@ -71,7 +71,18 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
         if (exam.getPassScore() > exam.getTotalScore()) {
             throw new RuntimeException("及格分不能大于总分！");
         }
-        
+
+        // 新增字段简单验证
+        if (exam.getAttendance() != null && exam.getAttendance() < 0) {
+            throw new RuntimeException("出勤人数不能小于0！");
+        }
+        if (exam.getTeacher() != null && exam.getTeacher().length() > 100) {
+            throw new RuntimeException("教师名称过长");
+        }
+        if (exam.getLocation() != null && exam.getLocation().length() > 200) {
+            throw new RuntimeException("地点名称过长");
+        }
+
         if (exam.getCreateTime() == null) {
             exam.setCreateTime(new Date());
         }
@@ -106,6 +117,15 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam>
         if (exam.getTotalScore() != null && exam.getPassScore() != null 
             && exam.getPassScore() > exam.getTotalScore()) {
             throw new RuntimeException("及格分不能大于总分！");
+        }
+        if (exam.getAttendance() != null && exam.getAttendance() < 0) {
+            throw new RuntimeException("出勤人数不能小于0！");
+        }
+        if (exam.getTeacher() != null && exam.getTeacher().length() > 100) {
+            throw new RuntimeException("教师名称过长");
+        }
+        if (exam.getLocation() != null && exam.getLocation().length() > 200) {
+            throw new RuntimeException("地点名称过长");
         }
         
         exam.setUpdateTime(new Date());

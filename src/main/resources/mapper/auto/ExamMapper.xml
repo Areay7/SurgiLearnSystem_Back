@@ -15,6 +15,11 @@
         <result column="pass_score" jdbcType="INTEGER" property="passScore" />
         <result column="question_ids" jdbcType="VARCHAR" property="questionIds" />
         <result column="status" jdbcType="VARCHAR" property="status" />
+        <!-- 新增字段映射 -->
+        <result column="teacher" jdbcType="VARCHAR" property="teacher" />
+        <result column="attendance" jdbcType="INTEGER" property="attendance" />
+        <result column="location" jdbcType="VARCHAR" property="location" />
+        <result column="remark" jdbcType="LONGVARCHAR" property="remark" />
         <result column="creator_id" jdbcType="VARCHAR" property="creatorId" />
         <result column="creator_name" jdbcType="VARCHAR" property="creatorName" />
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
@@ -29,7 +34,10 @@
         SELECT e.* FROM exam e
         WHERE 1=1
         <if test="searchText != null and searchText != ''">
-            AND (e.exam_name LIKE CONCAT('%', #{searchText}, '%') OR e.exam_type LIKE CONCAT('%', #{searchText}, '%'))
+            AND (e.exam_name LIKE CONCAT('%', #{searchText}, '%')
+                 OR e.exam_type LIKE CONCAT('%', #{searchText}, '%')
+                 OR e.teacher LIKE CONCAT('%', #{searchText}, '%')
+                 OR e.location LIKE CONCAT('%', #{searchText}, '%'))
         </if>
         <if test="examType != null and examType != ''">
             AND e.exam_type = #{examType}

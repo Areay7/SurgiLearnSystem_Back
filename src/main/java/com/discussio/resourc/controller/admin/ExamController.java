@@ -72,7 +72,11 @@ public class ExamController extends BaseController {
         } else {
             QueryWrapper<Exam> queryWrapper = new QueryWrapper<>();
             if (searchText != null && !searchText.trim().isEmpty()) {
-                queryWrapper.and(w -> w.like("exam_name", searchText.trim()).or().like("exam_type", searchText.trim()));
+                String kw = searchText.trim();
+                queryWrapper.and(w -> w.like("exam_name", kw)
+                        .or().like("exam_type", kw)
+                        .or().like("teacher", kw)
+                        .or().like("location", kw));
             }
             if (examType != null && !examType.trim().isEmpty()) {
                 queryWrapper.eq("exam_type", examType.trim());

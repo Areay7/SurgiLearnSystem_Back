@@ -121,6 +121,11 @@ CREATE TABLE IF NOT EXISTS `exam` (
   `pass_score` INT(11) DEFAULT 0,
   `question_ids` TEXT,
   `status` VARCHAR(50) DEFAULT NULL,
+  -- 新增字段
+  `teacher` VARCHAR(100) DEFAULT NULL,
+  `attendance` INT(11) DEFAULT 0,
+  `location` VARCHAR(200) DEFAULT NULL,
+  `remark` TEXT,
   `creator_id` VARCHAR(100) DEFAULT NULL,
   `creator_name` VARCHAR(100) DEFAULT NULL,
   `create_time` DATETIME DEFAULT NULL,
