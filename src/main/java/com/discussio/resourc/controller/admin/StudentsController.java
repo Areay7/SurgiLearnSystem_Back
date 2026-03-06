@@ -14,6 +14,14 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.layout.properties.UnitValue;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
@@ -129,5 +137,59 @@ public class StudentsController extends BaseController {
             return AjaxResult.error(403, "无权限编辑用户");
         }
         return toAjax(studentsService.updateStudents(students));
+    }
+
+    @ApiOperation(value = "批量打印学员记录", notes = "需 user:view 权限")
+    @PostMapping("/print")
+    public void printStudents(@RequestBody java.util.Map<String, List<Long>> requestBody, HttpServletRequest request, javax.servlet.http.HttpServletResponse response) throws Exception {
+        if (permissionHelper != null && !permissionHelper.hasPermission(request, "user:view")) {
+            response.setStatus(403);
+            return;
+        }
+        
+        List<Long> ids = requestBody.get("ids");
+        if (ids == null || ids.isEmpty()) {
+            response.setStatus(400);
+            return;
+        }
+        
+        List<Students> students = studentsService.selectStudentsByIds(ids);
+        
+        // 生成PDF
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=students.pdf");
+        
+        PdfWriter writer = new PdfWriter(response.getOutputStream());
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        Document document = new Document(pdfDoc);
+        
+        document.add(new Paragraph("学员记录列表").setTextAlignment(TextAlignment.CENTER).setFontSize(18));
+        document.add(new Paragraph(" "));
+        
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 2, 2, 2, 2, 2, 2}));
+        table.setWidth(UnitValue.createPercentValue(100));
+        
+        // 表头
+        table.addHeaderCell(new Cell().add(new Paragraph("ID")).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("姓名")).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("手机号")).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("员工编号")).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("用户类型")).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("部门")).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("状态")).setTextAlignment(TextAlignment.CENTER));
+        
+        // 数据行
+        for (Students student : students) {
+            table.addCell(new Cell().add(new Paragraph(String.valueOf(student.getId()))));
+            table.addCell(new Cell().add(new Paragraph(student.getStudentName() != null ? student.getStudentName() : "-")));
+            table.addCell(new Cell().add(new Paragraph(student.getPhone() != null ? student.getPhone() : "-")));
+            table.addCell(new Cell().add(new Paragraph(student.getEmployeeId() != null ? student.getEmployeeId() : "-")));
+            table.addCell(new Cell().add(new Paragraph(student.getUserType() != null ? (student.getUserType() == 1 ? "学员" : student.getUserType() == 2 ? "讲师" : "其他") : "-")));
+            table.addCell(new Cell().add(new Paragraph(student.getDepartment() != null ? student.getDepartment() : "-")));
+            table.addCell(new Cell().add(new Paragraph(student.getStatus() != null ? student.getStatus() : "-")));
+        }
+        
+        document.add(table);
+        document.close();
     }
 }

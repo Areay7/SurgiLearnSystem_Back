@@ -24,4 +24,8 @@ public interface IStudentsService extends IService<Students> {
      * 根据手机号更新学员记录
      */
     int updateStudentsByPhone(String phone, Students students);
+    /**
+     * 根据ID列表查询学员记录
+     */
+    List<Students> selectStudentsByIds(List<Long> ids);
 }

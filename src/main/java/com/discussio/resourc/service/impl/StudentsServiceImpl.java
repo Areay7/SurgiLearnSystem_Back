@@ -144,4 +144,12 @@ public class StudentsServiceImpl extends ServiceImpl<StudentsMapper, Students>
         students.setUpdateTime(new Date());
         return this.baseMapper.update(students, queryWrapper);
     }
+
+    @Override
+    public List<Students> selectStudentsByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        return this.baseMapper.selectBatchIds(ids);
+    }
 }
